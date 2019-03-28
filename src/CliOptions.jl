@@ -46,7 +46,7 @@ hoge
 function make_option(names::String...)
     @assert 0 < length(names)
     if is_option(names)
-        return NamedOption(names)
+        return NamedOption(names...)
     else
         singular_name = names[1]
         if singular_name == ""

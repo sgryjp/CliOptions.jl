@@ -30,7 +30,7 @@ using CliOptions: encode, is_option, match, NamedOption, Positional
             (names, ["a", "-d", "3"], 2, (4, ("d" => "3", "depth" => "3"))),
         ]
         for (names, arg, index, expected) in test_cases
-            option = NamedOption(names)
+            option = NamedOption(names...)
             ctx = Dict{Any,Int}(option => 0)
             if expected isa Type && expected <: Exception
                 @test_throws expected CliOptions.consume!(ctx, option, arg, index)

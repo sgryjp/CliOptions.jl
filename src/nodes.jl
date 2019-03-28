@@ -3,6 +3,13 @@
 #
 struct NamedOption
     names
+
+    function NamedOption(names::String...)
+        if "" ∈ names
+            throw_error("Empty string is not allowed as an option's name")
+        end
+        new(names)
+    end
 end
 
 """
