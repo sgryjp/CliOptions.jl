@@ -43,15 +43,21 @@ end
 # Positional
 #
 struct Positional
-    singular_name
-    plural_name
+    names
+
+    function Positional(singular_name, plural_name = "")
+        if singular_name == ""
+            throw_error("Name of positional argument must not be an empty string")
+        end
+        plural_name == "" ? new((singular_name,)) : new((singular_name, plural_name))
+    end
 end
 
 function consume!(ctx, o::Positional, args, i)
     @assert i ≤ length(args)
-    @assert o.singular_name ≠ ""
+    @assert "" ∉ o.names
     if length(args) < i
-        throw_error("`" * o.singular_name * "` must be specified")
+        throw_error("`" * o.names[1] * "` must be specified")
     end
 
     # Skip if this node is already processed
@@ -59,11 +65,9 @@ function consume!(ctx, o::Positional, args, i)
         return -1, nothing
     end
 
-    names(o) = o.plural_name == "" ? (o.singular_name,) : (o.singular_name, o.plural_name)
-
     value = args[i]
     ctx[o] += 1
-    i + 1, Tuple(encode(name) => value for name ∈ names(o) if name ≠ "")
+    i + 1, Tuple(encode(name) => value for name ∈ o.names)
 end
 
 #

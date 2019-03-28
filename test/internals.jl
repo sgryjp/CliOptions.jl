@@ -42,11 +42,9 @@ using CliOptions: encode, is_option, match, NamedOption, Positional
 
     @testset "consume(::Positional)" begin
         test_cases = [
-            ("",     "",      Vector{String}(), 1, AssertionError),
             ("file", "",      Vector{String}(), 1, AssertionError),
             ("file", "",      [""],             1, (2, ("file" => "",))),
             ("file", "",      ["-d"],           1, (2, ("file" => "-d",))),
-            ("",     "files", ["-d"],           1, AssertionError),
             ("file", "files", ["-d"],           1, (2, ("file" => "-d", "files" => "-d"))),
         ]
         for (singular, plural, arg, index, expected) in test_cases
