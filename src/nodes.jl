@@ -13,6 +13,7 @@ struct NamedOption
 end
 
 """
+
     consume!(ctx, option, args, i)
 
 Consumes zero or more arguments from `args` starting from index `i` according to the
@@ -74,7 +75,7 @@ end
 # OneOf
 #
 struct OneOf
-    options :: Vector{Union{NamedOption,Positional}}
+    options::Vector{Union{NamedOption,Positional}}
 end
 
 function consume!(ctx, o::OneOf, args, i)

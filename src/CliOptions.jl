@@ -4,6 +4,7 @@ include("errors.jl")
 include("nodes.jl")
 
 """
+
     ParsedArguments
 
 Dict-like object holding parsing result of command line options.
@@ -17,7 +18,7 @@ function Base.getindex(args::ParsedArguments, key)
     getindex(args._dict, k)
 end
 
-function Base.propertynames(args::ParsedArguments, private=false)
+function Base.propertynames(args::ParsedArguments, private = false)
     vcat([:_dict], [Symbol(k) for (k, v) ∈ getfield(args, :_dict)])
 end
 
@@ -35,6 +36,7 @@ end
 
 
 """
+
     make_option(name...)
 
 # Examples
@@ -58,6 +60,7 @@ function make_option(names::String...)
 end
 
 """
+
     parse_args(options, args::Vector{String}=ARGS)
 
 Parse command line options.
@@ -68,7 +71,7 @@ construct option specification.
 `args` is the command line arguments to be parsed. If omitted, this function parses
 `Base.ARGS` which is an array of command line arguments passed to the Julia script.
 """
-function parse_args(options, args::Vector{String}=ARGS)
+function parse_args(options, args::Vector{String} = ARGS)
     dict = Dict{String,String}()
     root = OneOf([o for o ∈ options])
     ctx = Dict{Any,Int}(o => 0 for o ∈ options)
