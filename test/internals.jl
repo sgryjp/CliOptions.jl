@@ -19,14 +19,15 @@ using CliOptions: encode, is_option, match, NamedOption, Positional
     end
 
     @testset "consume(::NamedOption)" begin
+        names = ["-d", "--depth"]
         test_cases = [
-            (["-d", "--depth"], Vector{String}(), 1, AssertionError),
-            (["-d", "--depth"], [""],             1, (-1, nothing)),
-            (["-d", "--depth"], ["-a"],           1, (-1, nothing)),
-            (["-d", "--depth"], ["-d"],           1, CliOptionError),
-            (["-d", "--depth"], ["-d", "3"],      1, (3, ("d" => "3", "depth" => "3"))),
-            (["-d", "--depth"], ["a", "-d"],      2, CliOptionError),
-            (["-d", "--depth"], ["a", "-d", "3"], 2, (4, ("d" => "3", "depth" => "3"))),
+            (names, Vector{String}(), 1, AssertionError),
+            (names, [""],             1, (-1, nothing)),
+            (names, ["-a"],           1, (-1, nothing)),
+            (names, ["-d"],           1, CliOptionError),
+            (names, ["-d", "3"],      1, (3, ("d" => "3", "depth" => "3"))),
+            (names, ["a", "-d"],      2, CliOptionError),
+            (names, ["a", "-d", "3"], 2, (4, ("d" => "3", "depth" => "3"))),
         ]
         for (names, arg, index, expected) in test_cases
             option = NamedOption(names)
