@@ -73,7 +73,7 @@ construct option specification.
 """
 function parse_args(options, args::Vector{String} = ARGS)
     dict = Dict{String,String}()
-    root = OneOf([o for o ∈ options])
+    root = OneOf(options...)
     ctx = Dict{Any,Int}(o => 0 for o ∈ options)
 
     i = 1

@@ -1,7 +1,9 @@
+abstract type Option end
+
 #
 # NamedOption
 #
-struct NamedOption
+struct NamedOption <: Option
     names
 
     function NamedOption(names::String...)
@@ -43,7 +45,7 @@ end
 #
 # Positional
 #
-struct Positional
+struct Positional <: Option
     names
 
     function Positional(singular_name, plural_name = "")
@@ -74,8 +76,10 @@ end
 #
 # OneOf
 #
-struct OneOf
-    options::Vector{Union{NamedOption,Positional}}
+struct OneOf <: Option
+    options::Vector{Option}
+
+    OneOf(options::Option...) = new([o for o ∈ options])
 end
 
 function consume!(ctx, o::OneOf, args, i)
