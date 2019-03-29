@@ -4,7 +4,6 @@ include("errors.jl")
 include("nodes.jl")
 
 """
-
     ParsedArguments
 
 Dict-like object holding parsing result of command line options.
@@ -36,7 +35,6 @@ end
 
 
 """
-
     make_option(name...)
 
 # Examples
@@ -60,7 +58,6 @@ function make_option(names::String...)
 end
 
 """
-
     parse_args(options, args::Vector{String}=ARGS)
 
 Parse command line options.

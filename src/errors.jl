@@ -1,5 +1,4 @@
 """
-
     CliOptionError(msg::String)
 
 Represents an error emitted by CliOptions module.

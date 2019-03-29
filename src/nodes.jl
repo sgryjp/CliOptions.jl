@@ -15,7 +15,6 @@ struct NamedOption <: Option
 end
 
 """
-
     consume!(ctx, option, args, i)
 
 Consumes zero or more arguments from `args` starting from index `i` according to the
