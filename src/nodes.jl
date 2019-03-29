@@ -10,6 +10,9 @@ struct NamedOption <: Option
         if "" ∈ names
             throw_error("Empty string is not allowed as an option's name")
         end
+        if any(name[1] != '-' for name ∈ names)
+            throw_error("Named option must start with '-'")
+        end
         new([n for n ∈ names])
     end
 end
