@@ -55,12 +55,22 @@ end
 #
 struct Positional <: Option
     names::Vector{String}
+    quantity::Char
 
-    function Positional(singular_name, plural_name = "")
+    function Positional(singular_name, plural_name = ""; quantity='1')
         if singular_name == ""
             throw_error("Name of positional argument must not be an empty string")
         end
-        plural_name == "" ? new([singular_name]) : new([singular_name, plural_name])
+        if quantity ∉ ('1', '+')
+            throw_error("Quantity of positional argument must be" *
+                        " one of '1' or '+'")
+        end
+
+        if plural_name == ""
+            return new([singular_name], quantity)
+        else
+            return new([singular_name, plural_name], quantity)
+        end
     end
 end
 
@@ -78,13 +88,22 @@ function consume!(ctx, o::Positional, args, i)
     end
 
     # Skip if this node is already processed
-    if 1 ≤ count
+    max_nvalues = Dict('1' => 1, '+' => Inf)[o.quantity]
+    if max_nvalues ≤ count
         return -1, nothing
     end
-    ctx[o] += 1
 
-    value = args[i]
-    i + 1, Tuple(encode(name) => value for name ∈ o.names)
+    if o.quantity ∈ ('+',)
+        value = args[i:end]
+        ctx[o] += length(value)
+        next_index = i + length(value)
+    else
+        value = args[i]
+        ctx[o] += 1
+        next_index = i + 1
+    end
+
+    next_index, Tuple(encode(name) => value for name ∈ o.names)
 end
 
 #
