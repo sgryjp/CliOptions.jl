@@ -4,13 +4,13 @@ abstract type Option end
 # NamedOption
 #
 struct NamedOption <: Option
-    names
+    names::Vector{String}
 
     function NamedOption(names::String...)
         if "" ∈ names
             throw_error("Empty string is not allowed as an option's name")
         end
-        new(names)
+        new([n for n ∈ names])
     end
 end
 
@@ -51,13 +51,13 @@ end
 # Positional
 #
 struct Positional <: Option
-    names
+    names::Vector{String}
 
     function Positional(singular_name, plural_name = "")
         if singular_name == ""
             throw_error("Name of positional argument must not be an empty string")
         end
-        plural_name == "" ? new((singular_name,)) : new((singular_name, plural_name))
+        plural_name == "" ? new([singular_name]) : new([singular_name, plural_name])
     end
 end
 

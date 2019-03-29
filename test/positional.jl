@@ -3,8 +3,8 @@ using CliOptions
 
 @testset "Positional()" begin
     @test_throws CliOptionError Positional("")
-    @test Positional("a").names == ("a",)
-    @test Positional("a", "b").names == ("a", "b")
+    @test Positional("a").names == ["a"]
+    @test Positional("a", "b").names == ["a", "b"]
 end
 
 @testset "consume(::Positional)" begin
