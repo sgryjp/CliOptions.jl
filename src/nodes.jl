@@ -31,13 +31,19 @@ function consume!(ctx, o::NamedOption, args, i)
         throw_error("A value is needed for option `" * args[i] * "`")
     end
 
-    # Skip if this node is already processed
-    if 1 ≤ ctx[o]
-        return -1, nothing
+    # Get how many times this option was evaluated
+    count::Int = get(ctx, o, -1)
+    if count == -1
+        ctx[o] = 0
     end
 
-    value = args[i + 1]
+    # Skip if this node is already processed
+    if 1 ≤ count
+        return -1, nothing
+    end
     ctx[o] += 1
+
+    value = args[i + 1]
     i + 2, Tuple(encode(name) => value for name in o.names)
 end
 
@@ -62,13 +68,19 @@ function consume!(ctx, o::Positional, args, i)
         throw_error("`" * o.names[1] * "` must be specified")
     end
 
-    # Skip if this node is already processed
-    if 1 ≤ ctx[o]
-        return -1, nothing
+    # Get how many times this option was evaluated
+    count::Int = get(ctx, o, -1)
+    if count == -1
+        ctx[o] = 0
     end
 
-    value = args[i]
+    # Skip if this node is already processed
+    if 1 ≤ count
+        return -1, nothing
+    end
     ctx[o] += 1
+
+    value = args[i]
     i + 1, Tuple(encode(name) => value for name ∈ o.names)
 end
 
@@ -91,4 +103,4 @@ function consume!(ctx, o::OneOf, args, i)
     return -1, nothing
 end
 
-export NamedOption, Positional, OneOf
+export NamedOption, OneOf, Option, Positional

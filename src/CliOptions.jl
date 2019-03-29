@@ -47,7 +47,7 @@ Parse command line options.
 function parse_args(options, args::Vector{String} = ARGS)
     dict = Dict{String,String}()
     root = OneOf(options...)
-    ctx = Dict{Any,Int}(o => 0 for o ∈ options)
+    ctx = Dict{Option,Int}()
 
     i = 1
     while i ≤ length(args)
