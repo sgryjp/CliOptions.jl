@@ -48,7 +48,7 @@ using CliOptions: encode, is_option, match, NamedOption, Positional
             ("file", "files", ["-d"],           1, (2, ("file" => "-d", "files" => "-d"))),
         ]
         for (singular, plural, arg, index, expected) in test_cases
-            option = CliOptions.Positional(singular, plural)
+            option = Positional(singular, plural)
             ctx = Dict{Any,Int}(option => 0)
             if expected isa Type && expected <: Exception
                 @test_throws expected CliOptions.consume!(ctx, option, arg, index)

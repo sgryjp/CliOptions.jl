@@ -90,3 +90,5 @@ function consume!(ctx, o::OneOf, args, i)
     end
     return -1, nothing
 end
+
+export NamedOption, Positional, OneOf
