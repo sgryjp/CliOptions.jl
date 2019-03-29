@@ -8,7 +8,6 @@ using CliOptions
     include("internals.jl")
     include("namedoption.jl")
     include("positional.jl")
-    include("make_option.jl")
     include("parse_args.jl")
 
 end

@@ -2,7 +2,8 @@
 
 ## Defining CLI Options
 ```@docs
-make_option
+NamedOption
+Positional
 ```
 
 ## Parsing CLI Arguments

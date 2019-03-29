@@ -3,8 +3,8 @@ using CliOptions
 
 @testset "parse_args()" begin
     options = (
-        make_option("-n", "--num-workers"),
-        make_option("filename"),
+        NamedOption("-n", "--num-workers"),
+        Positional("filename"),
     )
     args = parse_args(options, ["-n", "3", "test.db"])
     @test args isa CliOptions.ParsedArguments
