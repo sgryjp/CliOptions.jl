@@ -1,3 +1,11 @@
+"""
+    Option
+
+A definition of a command line option. Defined subtypes of this type are:
+
+- NamedOption
+- Positional
+"""
 abstract type Option end
 
 #
