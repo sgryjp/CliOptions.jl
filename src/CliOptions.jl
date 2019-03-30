@@ -14,19 +14,19 @@ throw_error(msg) = throw(CliOptionError(msg))
 
 
 """
-    Option
+    AbstractOption
 
 A definition of a command line option. Defined subtypes of this type are:
 
 - NamedOption
 - Positional
 """
-abstract type Option end
+abstract type AbstractOption end
 
 #
 # NamedOption
 #
-struct NamedOption <: Option
+struct NamedOption <: AbstractOption
     names::Vector{String}
 
     function NamedOption(names::String...)
@@ -76,7 +76,7 @@ end
 #
 # Positional
 #
-struct Positional <: Option
+struct Positional <: AbstractOption
     names::Vector{String}
     quantity::Char
 
@@ -132,10 +132,10 @@ end
 #
 # OneOf
 #
-struct OneOf <: Option
-    options::Vector{Option}
+struct OneOf <: AbstractOption
+    options::Vector{AbstractOption}
 
-    OneOf(options::Option...) = new([o for o ∈ options])
+    OneOf(options::AbstractOption...) = new([o for o ∈ options])
 end
 
 function consume!(ctx, o::OneOf, args, i)
@@ -193,7 +193,7 @@ Parse command line options.
 function parse_args(options, args::Vector{String} = ARGS)
     dict = Dict{String,String}()
     root = OneOf(options...)
-    ctx = Dict{Option,Int}()
+    ctx = Dict{AbstractOption,Int}()
 
     i = 1
     while i ≤ length(args)
@@ -215,6 +215,6 @@ encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
 is_option(names) = any([startswith(name, '-') && 2 ≤ length(name) for name ∈ names])
 
 
-export CliOptionError, NamedOption, OneOf, Option, parse_args, Positional
+export AbstractOption, CliOptionError, NamedOption, OneOf, parse_args, Positional
 
 end # module
