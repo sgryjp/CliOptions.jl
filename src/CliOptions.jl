@@ -1,7 +1,19 @@
 module CliOptions
 
-include("errors.jl")
 include("nodes.jl")
+
+
+"""
+    CliOptionError(msg::String)
+
+An error occurred inside CliOptions module.
+"""
+struct CliOptionError <: Exception
+    msg::String
+end
+
+throw_error(msg) = throw(CliOptionError(msg))
+
 
 """
     ParsedArguments
@@ -68,6 +80,6 @@ end
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
 is_option(names) = any([startswith(name, '-') && 2 ≤ length(name) for name ∈ names])
 
-export parse_args
+export CliOptionError, parse_args
 
 end # module
