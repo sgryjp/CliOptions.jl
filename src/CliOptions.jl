@@ -83,6 +83,9 @@ struct FlagOption <: AbstractOption
     negators::Vector{String}
 
     function FlagOption(names::String...; negators::Vector{String}=String[])
+        if length(names) == 0
+            throw(ArgumentError("At least one name for a FlagOption must be specified"))
+        end
         for name in unique(vcat(collect(names), negators))
             if match(r"^-[^-]", name) == nothing && match(r"^--[^-]", name) == nothing
                 if name == ""
