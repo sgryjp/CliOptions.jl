@@ -289,10 +289,12 @@ function parse_args(options, args = ARGS)
 
     # Take care of omitted options
     for option ∈ (o for o ∈ options if o ∉ keys(ctx))
-        # FlagOptions: Set implicit default boolean values
         if option isa FlagOption
+            # Set implicit default boolean values
             foreach(k -> dict[encode(k)] = false, option.names)
             foreach(k -> dict[encode(k)] = true, option.negators)
+        elseif option isa Positional
+            throw(CliOptionError("Too many command line arguments"))
         end
     end
 

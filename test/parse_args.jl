@@ -38,4 +38,22 @@ using CliOptions
         @test args.a == false
         @test args.b == true
     end
+
+    @testset "Positional" begin
+        options = (Positional("file", "files"; quantity='1'),)
+        @test_throws CliOptionError parse_args(options, String[])
+        args = parse_args(options, ["a"])
+        @test args.file == "a"
+        @test args.files == "a"
+        @test_throws CliOptionError parse_args(options, ["a", "b"])
+
+        options = (Positional("file", "files"; quantity='+'),)
+        @test_throws CliOptionError parse_args(options, String[])
+        args = parse_args(options, ["a"])
+        @test args.file == ["a"]
+        @test args.files == ["a"]
+        args = parse_args(options, ["a", "-b"])
+        @test args.file == ["a", "-b"]
+        @test args.files == ["a", "-b"]
+    end
 end
