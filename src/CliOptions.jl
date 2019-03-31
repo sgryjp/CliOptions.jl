@@ -77,6 +77,8 @@ function consume!(ctx, o::NamedOption, args, i)
     i + 2, Tuple(encode(name) => value for name in o.names)
 end
 
+friendly_name(o::NamedOption) = "option"
+primary_name(o::NamedOption) = o.names[1]
 
 """
     FlagOption
@@ -147,6 +149,10 @@ function consume!(ctx, o::FlagOption, args, i)
     i + 1, Tuple(values)
 end
 
+friendly_name(o::FlagOption) = "flag option"
+primary_name(o::FlagOption) = o.singular_name
+
+
 """
     Positional
 
@@ -209,6 +215,10 @@ function consume!(ctx, o::Positional, args, i)
 
     next_index, Tuple(encode(name) => value for name ∈ o.names)
 end
+
+friendly_name(o::Positional) = "positional argument"
+primary_name(o::Positional) = o.names[1]
+
 
 #
 # OneOf
@@ -290,14 +300,16 @@ function parse_args(options, args = ARGS)
         i = next_index
     end
 
-    # Take care of omitted options
+    # Take care of omitted options  #TODO: Can this be done by init_context!(ctx, option)?
     for option ∈ (o for o ∈ options if o ∉ keys(ctx))
         if option isa FlagOption
             # Set implicit default boolean values
             foreach(k -> dict[encode(k)] = false, option.names)
             foreach(k -> dict[encode(k)] = true, option.negators)
         elseif option isa Positional
-            throw(CliOptionError("Too many command line arguments"))
+            msg = "A " * friendly_name(option) *
+                  " \"" * primary_name(option) * "\" was not specified"
+            throw(CliOptionError(msg))
         end
     end
 
@@ -314,7 +326,7 @@ export AbstractOption,
        FlagOption,
        NamedOption,
        OneOf,
-       parse_args,
-       Positional
+       Positional,
+       parse_args
 
 end # module
