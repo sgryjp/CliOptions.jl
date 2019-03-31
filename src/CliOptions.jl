@@ -10,8 +10,6 @@ struct CliOptionError <: Exception
     msg::String
 end
 
-throw_error(msg) = throw(CliOptionError(msg))
-
 
 """
     AbstractOption
@@ -31,10 +29,10 @@ struct NamedOption <: AbstractOption
 
     function NamedOption(names::String...)
         if "" ∈ names
-            throw_error("Empty string is not allowed as an option's name")
+            throw(CliOptionError("Empty string is not allowed as an option's name"))
         end
         if any(name[1] != '-' for name ∈ names)
-            throw_error("Named option must start with '-'")
+            throw(CliOptionError("Named option must start with '-'"))
         end
         new([n for n ∈ names])
     end
@@ -54,7 +52,7 @@ function consume!(ctx, o::NamedOption, args, i)
         return -1, nothing
     end
     if length(args) < i + 1
-        throw_error("A value is needed for option `" * args[i] * "`")
+        throw(CliOptionError("A value is needed for option `" * args[i] * "`"))
     end
 
     # Get how many times this option was evaluated
@@ -82,11 +80,11 @@ struct Positional <: AbstractOption
 
     function Positional(singular_name, plural_name = ""; quantity='1')
         if singular_name == ""
-            throw_error("Name of positional argument must not be an empty string")
+            throw(CliOptionError("Name of positional argument must not be an empty string"))
         end
         if quantity ∉ ('1', '+')
-            throw_error("Quantity of positional argument must be" *
-                        " one of '1' or '+'")
+            throw(CliOptionError("Quantity of positional argument must be" *
+                                 " one of '1' or '+'"))
         end
 
         if plural_name == ""
@@ -101,7 +99,7 @@ function consume!(ctx, o::Positional, args, i)
     @assert i ≤ length(args)
     @assert "" ∉ o.names
     if length(args) < i
-        throw_error("`" * o.names[1] * "` must be specified")
+        throw(CliOptionError("`" * o.names[1] * "` must be specified"))
     end
 
     # Get how many times this option was evaluated
@@ -199,7 +197,7 @@ function parse_args(options, args::Vector{String} = ARGS)
     while i ≤ length(args)
         next_index, pairs = consume!(ctx, root, args, i)
         if next_index < 0
-            throw_error("Unrecognizable argument: " * args[i])
+            throw(CliOptionError("Unrecognizable argument: " * args[i]))
         end
 
         for (k, v) ∈ pairs
