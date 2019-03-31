@@ -147,11 +147,18 @@ struct Positional <: AbstractOption
 
     function Positional(singular_name, plural_name = ""; quantity='1')
         if singular_name == ""
-            throw(CliOptionError("Name of positional argument must not be an empty string"))
+            throw(ArgumentError("Name of a Positional must not be empty: " * singular_name))
+        end
+        if startswith(singular_name, '-')
+            throw(ArgumentError("Name of a Positional must not start with a hyphen: " *
+                                singular_name))
+        end
+        if startswith(plural_name, '-')
+            throw(ArgumentError("Name of a Positional must not start with a hyphen: " *
+                                plural_name))
         end
         if quantity ∉ ('1', '+')
-            throw(CliOptionError("Quantity of positional argument must be" *
-                                 " one of '1' or '+'"))
+            throw(ArgumentError("Quantity of a Positional must be one of '1' or '+'"))
         end
 
         if plural_name == ""

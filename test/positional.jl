@@ -4,7 +4,10 @@ using CliOptions: consume!
 
 @testset "Positional()" begin
     @testset "ctor" begin
-        @test_throws CliOptionError Positional("")
+        @test_throws ArgumentError Positional("")
+        @test_throws ArgumentError Positional("-a")
+        @test_throws ArgumentError Positional("a", "-b")
+        @test_throws ArgumentError Positional("-a", "-b"; quantity='_')
         @test Positional("a").names == ["a"]
         @test Positional("a", "b").names == ["a", "b"]
     end
