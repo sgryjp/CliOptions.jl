@@ -34,7 +34,7 @@ using CliOptions: consume!
         let ctx = Dict{AbstractOption,Int}()
             next_index, pairs = consume!(ctx, option, ["foo"], 1)
             @test next_index == -1
-            @test pairs == nothing
+            @test pairs === nothing
         end
         let ctx = Dict{AbstractOption,Int}()
             next_index, pairs = consume!(ctx, option, ["-i"], 1)
@@ -61,7 +61,7 @@ using CliOptions: consume!
         let ctx = Dict{AbstractOption,Int}()
             next_index, pairs = consume!(ctx, option, ["foo"], 1)
             @test next_index == -1
-            @test pairs == nothing
+            @test pairs === nothing
         end
         let ctx = Dict{AbstractOption,Int}()
             next_index, pairs = consume!(ctx, option, ["-i"], 1)

@@ -95,10 +95,10 @@ struct FlagOption <: AbstractOption
             throw(ArgumentError("At least one name for a FlagOption must be specified"))
         end
         for name in unique(vcat(collect(names), negators))
-            if match(r"^-[^-]", name) == nothing && match(r"^--[^-]", name) == nothing
+            if match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
                 if name == ""
                     throw(ArgumentError("Name of a FlagOption must not be empty"))
-                elseif match(r"^[^-]", name) != nothing
+                elseif match(r"^[^-]", name) !== nothing
                     throw(ArgumentError("Name of a FlagOption must start with a hyphen: " *
                                         name))
                 else
