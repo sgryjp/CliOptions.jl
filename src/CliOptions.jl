@@ -28,11 +28,16 @@ struct NamedOption <: AbstractOption
     names::Vector{String}
 
     function NamedOption(names::String...)
-        if "" ∈ names
-            throw(CliOptionError("Empty string is not allowed as an option's name"))
+        if length(names) == 0
+            throw(ArgumentError("At least one name for a NamedOption must be specified"))
         end
-        if any(name[1] != '-' for name ∈ names)
-            throw(CliOptionError("Named option must start with '-'"))
+        for name ∈ names
+            if "" == name
+                throw(ArgumentError("Name of a NamedOption must not be empty"))
+            elseif name[1] != '-'
+                throw(ArgumentError("Name of a NamedOption must start with a hyphen: " *
+                                    name))
+            end
         end
         new([n for n ∈ names])
     end
@@ -89,7 +94,7 @@ struct FlagOption <: AbstractOption
         for name in unique(vcat(collect(names), negators))
             if match(r"^-[^-]", name) == nothing && match(r"^--[^-]", name) == nothing
                 if name == ""
-                    throw(ArgumentError("Name of a FlagOption must not be empty: " * name))
+                    throw(ArgumentError("Name of a FlagOption must not be empty"))
                 elseif match(r"^[^-]", name) != nothing
                     throw(ArgumentError("Name of a FlagOption must start with a hyphen: " *
                                         name))
@@ -153,7 +158,7 @@ struct Positional <: AbstractOption
 
     function Positional(singular_name, plural_name = ""; quantity='1')
         if singular_name == ""
-            throw(ArgumentError("Name of a Positional must not be empty: " * singular_name))
+            throw(ArgumentError("Name of a Positional must not be empty"))
         end
         if startswith(singular_name, '-')
             throw(ArgumentError("Name of a Positional must not start with a hyphen: " *

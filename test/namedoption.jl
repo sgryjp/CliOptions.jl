@@ -2,10 +2,11 @@ using Test
 using CliOptions
 
 @testset "NamedOption()" begin
-    @test_throws CliOptionError NamedOption("")
+    @test_throws ArgumentError NamedOption()
+    @test_throws ArgumentError NamedOption("")
+    @test_throws ArgumentError NamedOption("a")
     @test NamedOption("-a").names == ["-a"]
     @test NamedOption("-a", "-b").names == ["-a", "-b"]
-    @test_throws CliOptionError NamedOption("non_hyphen_first_char")
 end
 
 @testset "consume(::NamedOption)" begin
