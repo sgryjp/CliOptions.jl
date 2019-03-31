@@ -183,9 +183,6 @@ end
 function consume!(ctx, o::Positional, args, i)
     @assert i ≤ length(args)
     @assert "" ∉ o.names
-    if length(args) < i
-        throw(CliOptionError("`" * o.names[1] * "` must be specified"))
-    end
 
     # Get how many times this option was evaluated
     count::Int = get(ctx, o, -1)
