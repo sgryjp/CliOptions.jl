@@ -216,7 +216,7 @@ Parse command line options.
 `args` is the command line arguments to be parsed. If omitted, this function parses
 `Base.ARGS` which is an array of command line arguments passed to the Julia script.
 """
-function parse_args(options, args::Vector{String} = ARGS)
+function parse_args(options, args::Vector{AbstractString} = ARGS)
     dict = Dict{String,String}()
     root = OneOf(options...)
     ctx = Dict{AbstractOption,Int}()
