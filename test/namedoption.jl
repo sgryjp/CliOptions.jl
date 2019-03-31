@@ -21,7 +21,7 @@ end
     ]
     for (names, arg, index, expected) in test_cases
         option = NamedOption(names...)
-        ctx = Dict{Any,Int}()
+        ctx = Dict{AbstractOption,Int}()
         if expected isa Type && expected <: Exception
             @test_throws expected CliOptions.consume!(ctx, option, arg, index)
         else

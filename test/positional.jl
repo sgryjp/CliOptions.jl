@@ -12,7 +12,7 @@ using CliOptions: consume!
     @testset "consume(::Positional)" begin
         @testset "empty args" begin
             option = Positional("file")
-            ctx = Dict{Any,Int}()
+            ctx = Dict{AbstractOption,Int}()
             @test_throws AssertionError consume!(ctx, option, Vector{String}(), 1)
         end
 
@@ -24,7 +24,7 @@ using CliOptions: consume!
             ]
             for (singular, plural, args, index, expected) in test_cases
                 option = Positional(singular, plural)
-                ctx = Dict{Any,Int}()
+                ctx = Dict{AbstractOption,Int}()
                 if expected isa Type && expected <: Exception
                     @test_throws expected consume!(ctx, option, args, index)
                 else
@@ -42,7 +42,7 @@ using CliOptions: consume!
             ]
             for (singular, plural, args, index, expected) in test_cases
                 option = Positional(singular, plural; quantity='+')
-                ctx = Dict{Any,Int}()
+                ctx = Dict{AbstractOption,Int}()
                 if expected isa Type && expected <: Exception
                     @test_throws expected consume!(ctx, option, args, index)
                 else
