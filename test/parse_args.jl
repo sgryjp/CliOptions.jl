@@ -49,9 +49,34 @@ using CliOptions
             @test_throws CliOptionError parse_args(options, ["a", "b"])
         end
 
+        @testset "quantity:1, omittable" begin
+            options = (Positional("file", "files"; quantity='1', default="foo.txt"),)
+            args = parse_args(options, String[])
+            @test args.file == "foo.txt"
+            @test args.files == "foo.txt"
+            @test_throws CliOptionError parse_args(options, ["a", "b"])
+            args = parse_args(options, ["a"])
+            @test args.file == "a"
+            @test args.files == "a"
+            @test_throws CliOptionError parse_args(options, ["a", "b"])
+        end
+
         @testset "quantity:+, required" begin
             options = (Positional("file", "files"; quantity='+'),)
             @test_throws CliOptionError parse_args(options, String[])
+            args = parse_args(options, ["a"])
+            @test args.file == ["a"]
+            @test args.files == ["a"]
+            args = parse_args(options, ["a", "-b"])
+            @test args.file == ["a", "-b"]
+            @test args.files == ["a", "-b"]
+        end
+
+        @testset "quantity:+, omittable" begin
+            options = (Positional("file", "files"; quantity='+', default=["foo.txt"]),)
+            args = parse_args(options, String[])
+            @test args.file == ["foo.txt"]
+            @test args.files == ["foo.txt"]
             args = parse_args(options, ["a"])
             @test args.file == ["a"]
             @test args.files == ["a"]

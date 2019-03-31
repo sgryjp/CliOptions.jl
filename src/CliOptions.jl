@@ -162,8 +162,9 @@ value.
 struct Positional <: AbstractOption
     names::Vector{String}
     quantity::Char
+    default::Any
 
-    function Positional(singular_name, plural_name = ""; quantity='1')
+    function Positional(singular_name, plural_name = ""; quantity='1', default::Any=nothing)
         if singular_name == ""
             throw(ArgumentError("Name of a Positional must not be empty"))
         end
@@ -180,9 +181,9 @@ struct Positional <: AbstractOption
         end
 
         if plural_name == ""
-            return new([singular_name], quantity)
+            return new([singular_name], quantity, default)
         else
-            return new([singular_name, plural_name], quantity)
+            return new([singular_name, plural_name], quantity, default)
         end
     end
 end
@@ -307,9 +308,13 @@ function parse_args(options, args = ARGS)
             foreach(k -> dict[encode(k)] = false, option.names)
             foreach(k -> dict[encode(k)] = true, option.negators)
         elseif option isa Positional
-            msg = "A " * friendly_name(option) *
-                  " \"" * primary_name(option) * "\" was not specified"
-            throw(CliOptionError(msg))
+            if option.default === nothing
+                msg = "A " * friendly_name(option) *
+                      " \"" * primary_name(option) * "\" was not specified"
+                throw(CliOptionError(msg))
+            else
+                foreach(k -> dict[encode(k)] = option.default, option.names)
+            end
         end
     end
 
