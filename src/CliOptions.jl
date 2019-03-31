@@ -99,6 +99,45 @@ struct FlagOption <: AbstractOption
     end
 end
 
+function consume!(ctx, o::FlagOption, args, i)
+    @assert i ≤ length(args)
+
+    if startswith(args[i], "--")
+        if args[i] ∈ o.names
+            value = true
+        elseif args[i] ∈ o.negators
+            value = false
+        else
+            return -1, nothing
+        end
+    elseif startswith(args[i], "-")
+        @assert length(args[i]) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
+        if args[i] ∈ o.names
+            value = true
+        elseif args[i] ∈ o.negators
+            value = false
+        else
+            return -1, nothing
+        end
+    else
+        return -1, nothing
+    end
+
+    # Update counter
+    count::Int = get(ctx, o, -1)
+    if count == -1
+        ctx[o] = 0
+    else
+        ctx[o] = count + 1
+    end
+
+    # Construct parsed values
+    values = Vector{Pair{String,Bool}}()
+    push!(values, [encode(name) => value for name in o.names]...)
+    push!(values, [encode(name) => !value for name in o.negators]...)
+    i + 1, Tuple(values)
+end
+
 #
 # Positional
 #
@@ -207,7 +246,7 @@ end
 
 
 """
-    parse_args(options, args::Vector{String}=ARGS)
+    parse_args(options, args=ARGS)
 
 Parse command line options.
 
@@ -216,16 +255,17 @@ Parse command line options.
 `args` is the command line arguments to be parsed. If omitted, this function parses
 `Base.ARGS` which is an array of command line arguments passed to the Julia script.
 """
-function parse_args(options, args::Vector{AbstractString} = ARGS)
-    dict = Dict{String,String}()
+function parse_args(options, args = ARGS)
+    dict = Dict{String,Any}()
     root = OneOf(options...)
     ctx = Dict{AbstractOption,Int}()
 
+    # Parse arguments
     i = 1
     while i ≤ length(args)
         next_index, pairs = consume!(ctx, root, args, i)
         if next_index < 0
-            throw(CliOptionError("Unrecognizable argument: " * args[i]))
+            throw(CliOptionError("Unrecognized argument: " * args[i]))
         end
 
         for (k, v) ∈ pairs
@@ -233,6 +273,16 @@ function parse_args(options, args::Vector{AbstractString} = ARGS)
         end
         i = next_index
     end
+
+    # Take care of omitted options
+    for option ∈ (o for o ∈ options if o ∉ keys(ctx))
+        # FlagOptions: Set implicit default boolean values
+        if option isa FlagOption
+            foreach(k -> dict[encode(k)] = false, option.names)
+            foreach(k -> dict[encode(k)] = true, option.negators)
+        end
+    end
+
     ParsedArguments(dict)
 end
 
@@ -241,6 +291,12 @@ encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
 is_option(names) = any([startswith(name, '-') && 2 ≤ length(name) for name ∈ names])
 
 
-export AbstractOption, CliOptionError, NamedOption, OneOf, parse_args, Positional
+export AbstractOption,
+       CliOptionError,
+       FlagOption,
+       NamedOption,
+       OneOf,
+       parse_args,
+       Positional
 
 end # module
