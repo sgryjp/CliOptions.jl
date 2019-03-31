@@ -83,11 +83,17 @@ struct FlagOption <: AbstractOption
     negators::Vector{String}
 
     function FlagOption(names::String...; negators::Vector{String}=String[])
-        if "" ∈ names || "" ∈ negators
-            throw(ArgumentError("`names` must not contain an empty string"))
-        end
-        if any(name[1] != '-' for name ∈ names) || any(name[1] != '-' for name ∈ negators)
-            throw(ArgumentError("Name of an option must start with '-'"))
+        for name in unique(vcat(collect(names), negators))
+            if match(r"^-[^-]", name) == nothing && match(r"^--[^-]", name) == nothing
+                if name == ""
+                    throw(ArgumentError("Name of a FlagOption must not be empty: " * name))
+                elseif match(r"^[^-]", name) != nothing
+                    throw(ArgumentError("Name of a FlagOption must start with a hyphen: " *
+                                        name))
+                else
+                    throw(ArgumentError("Invalid name for FlagOption: " * name))
+                end
+            end
         end
         new([n for n ∈ names], [n for n ∈ negators])
     end
