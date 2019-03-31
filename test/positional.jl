@@ -30,37 +30,44 @@ using CliOptions: consume!
         end
 
         @testset "quantity:1" begin
-            test_cases = [
-                ("file", "",      [""],   1, (2, ("file" => "",))),
-                ("file", "",      ["-d"], 1, (2, ("file" => "-d",))),
-                ("file", "files", ["-d"], 1, (2, ("file" => "-d", "files" => "-d"))),
-            ]
-            for (singular, plural, args, index, expected) in test_cases
-                option = Positional(singular, plural)
-                ctx = Dict{AbstractOption,Int}()
-                if expected isa Type && expected <: Exception
-                    @test_throws expected consume!(ctx, option, args, index)
-                else
-                    @test consume!(ctx, option, args, index) == expected
-                end
+            let ctx = Dict{AbstractOption,Int}()
+                option = Positional("file")
+                next_index, pairs = consume!(ctx, option, [""], 1)
+                @test next_index == 2
+                @test pairs == ("file" => "",)
+            end
+            let ctx = Dict{AbstractOption,Int}()
+                option = Positional("file")
+                next_index, pairs = consume!(ctx, option, ["-d"], 1)
+                @test next_index == 2
+                @test pairs == ("file" => "-d",)
+            end
+            let ctx = Dict{AbstractOption,Int}()
+                option = Positional("file", "files")
+                next_index, pairs = consume!(ctx, option, ["-d"], 1)
+                @test next_index == 2
+                @test pairs == ("file" => "-d", "files" => "-d")
             end
         end
 
         @testset "quantity:+" begin
-            test_cases = [
-                ("file", "",      [""],       1, (2, ("file" => [""],))),
-                ("file", "",      ["a"],      1, (2, ("file" => ["a"],))),
-                ("file", "files", ["a", "b"], 1, (3, ("file" => ["a", "b"],
-                                                      "files" => ["a", "b"]))),
-            ]
-            for (singular, plural, args, index, expected) in test_cases
-                option = Positional(singular, plural; quantity='+')
-                ctx = Dict{AbstractOption,Int}()
-                if expected isa Type && expected <: Exception
-                    @test_throws expected consume!(ctx, option, args, index)
-                else
-                    @test consume!(ctx, option, args, index) == expected
-                end
+            let ctx = Dict{AbstractOption,Int}()
+                option = Positional("file", quantity='+')
+                next_index, pairs = consume!(ctx, option, [""], 1)
+                @test next_index == 2
+                @test pairs == ("file" => [""],)
+            end
+            let ctx = Dict{AbstractOption,Int}()
+                option = Positional("file", "files", quantity='+')
+                next_index, pairs = consume!(ctx, option, ["a"], 1)
+                @test next_index == 2
+                @test pairs == ("file" => ["a"], "files" => ["a"])
+            end
+            let ctx = Dict{AbstractOption,Int}()
+                option = Positional("file", quantity='+')
+                next_index, pairs = consume!(ctx, option, ["a", "b"], 1)
+                @test next_index == 3
+                @test pairs == ("file" => ["a", "b"],)
             end
         end
     end

@@ -138,9 +138,12 @@ function consume!(ctx, o::FlagOption, args, i)
     i + 1, Tuple(values)
 end
 
-#
-# Positional
-#
+"""
+    Positional
+
+`Positional` represents a command line argument which are not an option name nor an option
+value.
+"""
 struct Positional <: AbstractOption
     names::Vector{String}
     quantity::Char
