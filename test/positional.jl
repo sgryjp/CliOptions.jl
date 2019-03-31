@@ -8,8 +8,18 @@ using CliOptions: consume!
         @test_throws ArgumentError Positional("-a")
         @test_throws ArgumentError Positional("a", "-b")
         @test_throws ArgumentError Positional("-a", "-b"; quantity='_')
-        @test Positional("a").names == ["a"]
-        @test Positional("a", "b").names == ["a", "b"]
+
+        option = Positional("a")
+        @test option.names == ["a"]
+        @test option.quantity == '1'
+
+        option = Positional("a", "b")
+        @test option.names == ["a", "b"]
+        @test option.quantity == '1'
+
+        option = Positional("a", quantity='+')
+        @test option.names == ["a"]
+        @test option.quantity == '+'
     end
 
     @testset "consume(::Positional)" begin
