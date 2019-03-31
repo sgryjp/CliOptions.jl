@@ -161,10 +161,12 @@ value.
 """
 struct Positional <: AbstractOption
     names::Vector{String}
-    quantity::Char
+    multiple::Bool
     default::Any
 
-    function Positional(singular_name, plural_name = ""; quantity='1', default::Any=nothing)
+    function Positional(singular_name, plural_name = "";
+                        multiple=false,
+                        default::Any=nothing)
         if singular_name == ""
             throw(ArgumentError("Name of a Positional must not be empty"))
         end
@@ -176,14 +178,11 @@ struct Positional <: AbstractOption
             throw(ArgumentError("Name of a Positional must not start with a hyphen: " *
                                 plural_name))
         end
-        if quantity ∉ ('1', '+')
-            throw(ArgumentError("Quantity of a Positional must be one of '1' or '+'"))
-        end
 
         if plural_name == ""
-            return new([singular_name], quantity, default)
+            return new([singular_name], multiple, default)
         else
-            return new([singular_name, plural_name], quantity, default)
+            return new([singular_name, plural_name], multiple, default)
         end
     end
 end
@@ -199,12 +198,12 @@ function consume!(ctx, o::Positional, args, i)
     end
 
     # Skip if this node is already processed
-    max_nvalues = Dict('1' => 1, '+' => Inf)[o.quantity]
+    max_nvalues = o.multiple ? Inf : 1
     if max_nvalues ≤ count
         return -1, nothing
     end
 
-    if o.quantity ∈ ('+',)
+    if o.multiple
         value = args[i:end]
         ctx[o] += length(value)
         next_index = i + length(value)
