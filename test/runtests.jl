@@ -5,6 +5,7 @@ using CliOptions
 
     include("internals.jl")
     include("namedoption.jl")
+    include("flagoption.jl")
     include("positional.jl")
     include("parse_args.jl")
 

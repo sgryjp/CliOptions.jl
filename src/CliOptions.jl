@@ -71,6 +71,28 @@ function consume!(ctx, o::NamedOption, args, i)
     i + 2, Tuple(encode(name) => value for name in o.names)
 end
 
+
+"""
+    FlagOption
+
+`FlagOption` represents a so-called "flag" command line option. An option of this type takes
+no value and whether it was specified becomes a boolean value.
+"""
+struct FlagOption <: AbstractOption
+    names::Vector{String}
+    negators::Vector{String}
+
+    function FlagOption(names::String...; negators::Vector{String}=String[])
+        if "" ∈ names || "" ∈ negators
+            throw(ArgumentError("`names` must not contain an empty string"))
+        end
+        if any(name[1] != '-' for name ∈ names) || any(name[1] != '-' for name ∈ negators)
+            throw(ArgumentError("Name of an option must start with '-'"))
+        end
+        new([n for n ∈ names], [n for n ∈ negators])
+    end
+end
+
 #
 # Positional
 #
