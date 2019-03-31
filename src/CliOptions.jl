@@ -10,6 +10,7 @@ struct CliOptionError <: Exception
     msg::String
 end
 
+Base.showerror(io::IO, e::CliOptionError) = print(io, "CliOptionError: " * e.msg)
 
 """
     AbstractOption
