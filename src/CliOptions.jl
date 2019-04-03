@@ -224,9 +224,9 @@ primary_name(o::Positional) = o.names[1]
 # OneOf
 #
 struct OneOf <: AbstractOption
-    options::Vector{AbstractOption}
+    options
 
-    OneOf(options::AbstractOption...) = new([o for o ∈ options])
+    OneOf(options::AbstractOption...) = new(options)
 end
 
 function consume!(ctx, o::OneOf, args, i)
@@ -237,6 +237,20 @@ function consume!(ctx, o::OneOf, args, i)
         end
     end
     return -1, nothing
+end
+
+
+"""
+    CliOptionSpec
+
+`CliOptionSpec` defines how to parse command line options.
+"""
+struct CliOptionSpec
+    root :: OneOf
+
+    function CliOptionSpec(options::AbstractOption...)
+        new(OneOf(options...))
+    end
 end
 
 
@@ -272,18 +286,16 @@ end
 
 
 """
-    parse_args(options, args=ARGS)
+    parse_args(spec::CliOptionSpec, args=ARGS)
 
-Parse command line options.
-
-`options` defines the specification of command line options.
+Parse command line options according to `spec`.
 
 `args` is the command line arguments to be parsed. If omitted, this function parses
 `Base.ARGS` which is an array of command line arguments passed to the Julia script.
 """
-function parse_args(options, args = ARGS)
+function parse_args(spec::CliOptionSpec, args = ARGS)
     dict = Dict{String,Any}()
-    root = OneOf(options...)
+    root::OneOf = spec.root
     ctx = Dict{AbstractOption,Int}()
 
     # Parse arguments
@@ -301,7 +313,7 @@ function parse_args(options, args = ARGS)
     end
 
     # Take care of omitted options  #TODO: Can this be done by init_context!(ctx, option)?
-    for option ∈ (o for o ∈ options if o ∉ keys(ctx))
+    for option ∈ (o for o ∈ root.options if o ∉ keys(ctx))
         if option isa FlagOption
             # Set implicit default boolean values
             foreach(k -> dict[encode(k)] = false, option.names)
@@ -327,6 +339,7 @@ is_option(names) = any([startswith(name, '-') && 2 ≤ length(name) for name ∈
 
 export AbstractOption,
        CliOptionError,
+       CliOptionSpec,
        FlagOption,
        NamedOption,
        OneOf,
