@@ -5,7 +5,7 @@ using CliOptions
     @testset "Mixed options" begin
         spec = CliOptionSpec(
             NamedOption("-n", "--num-workers"),
-            FlagOption("-i", "--ignore-case", negators=["--case-sensitive"]),
+            FlagOption("-i", "--ignore-case", negators = ["--case-sensitive"]),
             Positional("filename"),
         )
         args = parse_args(spec, ["-n", "3", "test.db"])
@@ -30,7 +30,7 @@ using CliOptions
     end
 
     @testset "FlagOption" begin
-        spec = CliOptionSpec(FlagOption("-a"; negators=["-b"]),)
+        spec = CliOptionSpec(FlagOption("-a"; negators = ["-b"]), )
         args = parse_args(spec, split("-a", " "))
         @test args.a == true
         @test args.b == false
@@ -39,7 +39,7 @@ using CliOptions
         @test args.a == false
         @test args.b == true
 
-        spec = CliOptionSpec(FlagOption("-a"; negators=["-b"]), FlagOption("-c"))
+        spec = CliOptionSpec(FlagOption("-a"; negators = ["-b"]), FlagOption("-c"))
         args = parse_args(spec, ["-c"])
         @test args.c == true
         @test args.a == false
@@ -60,7 +60,7 @@ using CliOptions
 
         @testset "single, omittable" begin
             spec = CliOptionSpec(
-                Positional("file", "files"; default="foo.txt"),
+                Positional("file", "files"; default = "foo.txt"),
             )
             args = parse_args(spec, String[])
             @test args.file == "foo.txt"
@@ -74,7 +74,7 @@ using CliOptions
 
         @testset "multiple, required" begin
             spec = CliOptionSpec(
-                Positional("file", "files"; multiple=true),
+                Positional("file", "files"; multiple = true),
             )
             @test_throws CliOptionError parse_args(spec, String[])
             args = parse_args(spec, ["a"])
@@ -87,7 +87,7 @@ using CliOptions
 
         @testset "multiple, omittable" begin
             spec = CliOptionSpec(
-                Positional("file", "files"; multiple=true, default=["foo.txt"]),
+                Positional("file", "files"; multiple = true, default = ["foo.txt"]),
             )
             args = parse_args(spec, String[])
             @test args.file == ["foo.txt"]

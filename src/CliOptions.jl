@@ -90,7 +90,7 @@ struct FlagOption <: AbstractOption
     names::Vector{String}
     negators::Vector{String}
 
-    function FlagOption(names::String...; negators::Vector{String}=String[])
+    function FlagOption(names::String...; negators::Vector{String} = String[])
         if length(names) == 0
             throw(ArgumentError("At least one name for a FlagOption must be specified"))
         end
@@ -165,8 +165,8 @@ struct Positional <: AbstractOption
     default::Any
 
     function Positional(singular_name, plural_name = "";
-                        multiple=false,
-                        default::Any=nothing)
+                        multiple = false,
+                        default::Any = nothing)
         if singular_name == ""
             throw(ArgumentError("Name of a Positional must not be empty"))
         end
@@ -249,7 +249,7 @@ end
 `CliOptionSpec` defines how to parse command line options.
 """
 struct CliOptionSpec
-    root :: OptionGroup
+    root::OptionGroup
 
     function CliOptionSpec(options::AbstractOption...)
         new(OptionGroup(options...))
@@ -319,15 +319,15 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     for option ∈ (o for o ∈ root.options if o ∉ keys(ctx))
         if option isa FlagOption
             # Set implicit default boolean values
-            foreach(k -> dict[encode(k)] = false, option.names)
-            foreach(k -> dict[encode(k)] = true, option.negators)
+            foreach(k->dict[encode(k)] = false, option.names)
+            foreach(k->dict[encode(k)] = true, option.negators)
         elseif option isa Positional
             if option.default === nothing
                 msg = "A " * friendly_name(option) *
                       " \"" * primary_name(option) * "\" was not specified"
                 throw(CliOptionError(msg))
             else
-                foreach(k -> dict[encode(k)] = option.default, option.names)
+                foreach(k->dict[encode(k)] = option.default, option.names)
             end
         end
     end

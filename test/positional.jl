@@ -18,12 +18,12 @@ using CliOptions: consume!
         @test option.multiple == false
         @test option.default === nothing
 
-        option = Positional("a", multiple=true)
+        option = Positional("a", multiple = true)
         @test option.names == ["a"]
         @test option.multiple == true
         @test option.default === nothing
 
-        option = Positional("a", default=42)
+        option = Positional("a", default = 42)
         @test option.names == ["a"]
         @test option.multiple == false
         @test option.default == 42
@@ -59,19 +59,19 @@ using CliOptions: consume!
 
         @testset "multiple" begin
             let ctx = Dict{AbstractOption,Int}()
-                option = Positional("file", multiple=true)
+                option = Positional("file", multiple = true)
                 next_index, pairs = consume!(ctx, option, [""], 1)
                 @test next_index == 2
                 @test pairs == ("file" => [""],)
             end
             let ctx = Dict{AbstractOption,Int}()
-                option = Positional("file", "files", multiple=true)
+                option = Positional("file", "files", multiple = true)
                 next_index, pairs = consume!(ctx, option, ["a"], 1)
                 @test next_index == 2
                 @test pairs == ("file" => ["a"], "files" => ["a"])
             end
             let ctx = Dict{AbstractOption,Int}()
-                option = Positional("file", multiple=true)
+                option = Positional("file", multiple = true)
                 next_index, pairs = consume!(ctx, option, ["a", "b"], 1)
                 @test next_index == 3
                 @test pairs == ("file" => ["a", "b"],)

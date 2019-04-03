@@ -9,14 +9,14 @@ using CliOptions: consume!
         @test_throws ArgumentError FlagOption("a")
         @test_throws ArgumentError FlagOption("-")
         @test_throws ArgumentError FlagOption("--")
-        @test_throws ArgumentError FlagOption("-a"; negators=[""])
-        @test_throws ArgumentError FlagOption("-a"; negators=["a"])
-        @test_throws ArgumentError FlagOption("-a"; negators=["-"])
-        @test_throws ArgumentError FlagOption("-a"; negators=["--"])
+        @test_throws ArgumentError FlagOption("-a"; negators = [""])
+        @test_throws ArgumentError FlagOption("-a"; negators = ["a"])
+        @test_throws ArgumentError FlagOption("-a"; negators = ["-"])
+        @test_throws ArgumentError FlagOption("-a"; negators = ["--"])
         option = FlagOption("-a")
         @test option.names == ["-a"]
         @test option.negators == String[]
-        option = FlagOption("-a", "-b", negators=["-c", "-d"])
+        option = FlagOption("-a", "-b", negators = ["-c", "-d"])
         @test option.names == ["-a", "-b"]
         @test option.negators == ["-c", "-d"]
     end
@@ -49,7 +49,7 @@ using CliOptions: consume!
     end
 
     @testset "consume(::FlagOption); negators" begin
-        option = FlagOption("-i", negators=["-c", "--case-sensitive"])
+        option = FlagOption("-i", negators = ["-c", "--case-sensitive"])
 
         let ctx = Dict{AbstractOption,Int}()
             @test_throws AssertionError consume!(ctx, option, String[], 1)
