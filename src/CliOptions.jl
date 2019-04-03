@@ -220,16 +220,19 @@ friendly_name(o::Positional) = "positional argument"
 primary_name(o::Positional) = o.names[1]
 
 
-#
-# OneOf
-#
-struct OneOf <: AbstractOption
+"""
+    OptionGroup
+
+`OptionGroup` contains one or more `AbstractOption`s and accepts command line arguments if
+it sees one of the options. In other word, this is an OR operator for `AbstractOption`s.
+"""
+struct OptionGroup <: AbstractOption
     options
 
-    OneOf(options::AbstractOption...) = new(options)
+    OptionGroup(options::AbstractOption...) = new(options)
 end
 
-function consume!(ctx, o::OneOf, args, i)
+function consume!(ctx, o::OptionGroup, args, i)
     for option in o.options
         next_index, pairs = consume!(ctx, option, args, i)
         if 0 < next_index
@@ -246,10 +249,10 @@ end
 `CliOptionSpec` defines how to parse command line options.
 """
 struct CliOptionSpec
-    root :: OneOf
+    root :: OptionGroup
 
     function CliOptionSpec(options::AbstractOption...)
-        new(OneOf(options...))
+        new(OptionGroup(options...))
     end
 end
 
@@ -295,7 +298,7 @@ Parse command line options according to `spec`.
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
     dict = Dict{String,Any}()
-    root::OneOf = spec.root
+    root::OptionGroup = spec.root
     ctx = Dict{AbstractOption,Int}()
 
     # Parse arguments
@@ -342,7 +345,7 @@ export AbstractOption,
        CliOptionSpec,
        FlagOption,
        NamedOption,
-       OneOf,
+       OptionGroup,
        Positional,
        parse_args
 
