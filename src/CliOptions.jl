@@ -245,6 +245,14 @@ end
 
 friendly_name(o::Positional) = "positional argument"
 primary_name(o::Positional) = o.names[1]
+function usage_token(o::Positional)
+    name = uppercase(o.names[1])
+    if o.multiple
+        name * " [" * name * "...]"
+    else
+        name
+    end
+end
 
 
 """
@@ -308,10 +316,8 @@ end
 function print_usage(io::IO, spec::CliOptionSpec)
     tokens = []
     for option in spec.root
-        if option isa FlagOption
+        if !(option isa AbstractOptionGroup)
             push!(tokens, usage_token(option))
-        elseif option isa NamedOption
-            push!(tokens, option.names[1] * " " * uppercase(encode(option.names[2])))
         end
     end
     println(io, "Usage: " * spec.program * " " *
