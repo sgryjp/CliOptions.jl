@@ -29,7 +29,7 @@ using CliOptions
         @test_throws CliOptionError parse_args(spec, ["test.db", "test.txt"])
     end
 
-    @testset "FlagOption" begin
+    @testset "FlagOption" begin  #TODO: 背反
         spec = CliOptionSpec(FlagOption("-a"; negators = ["-b"]), )
         args = parse_args(spec, split("-a", " "))
         @test args.a == true

@@ -8,5 +8,6 @@ using CliOptions
     include("flagoption.jl")
     include("positional.jl")
     include("parse_args.jl")
+    include("usage.jl")
 
 end

@@ -48,8 +48,9 @@ appears in a format like  `-a b`, `--option-name value` or `--option-name=value`
 """
 struct NamedOption <: AbstractOption
     names::Vector{String}
+    help::String
 
-    function NamedOption(names::String...)
+    function NamedOption(names::String...; help="")
         if length(names) == 0
             throw(ArgumentError("At least one name for a NamedOption must be specified"))
         end
@@ -61,7 +62,7 @@ struct NamedOption <: AbstractOption
                                     name))
             end
         end
-        new([n for n ∈ names])
+        new([n for n ∈ names], help)
     end
 end
 
@@ -100,7 +101,20 @@ end
 
 friendly_name(o::NamedOption) = "option"
 primary_name(o::NamedOption) = o.names[1]
-usage_token(o::NamedOption) = o.names[1] * " " * uppercase(encode(o.names[2]))
+function to_usage_tokens(o::NamedOption)
+    [o.names[1] * " " * uppercase(encode(2 ≤ length(o.names) ? o.names[2] : o.names[1]))]
+end
+function print_description(io::IO, o::NamedOption)
+    heading = join(o.names, ", ")
+    print(io, repeat(" ", 4) * heading)
+    if 16 ≤ length(heading) + 4
+        println(io)
+        print(io, repeat(" ", 16) * o.help)
+    else
+        print(io, repeat(" ", 16 - 4 - length(heading)) * o.help)
+    end
+    println(io)
+end
 
 
 """
@@ -174,9 +188,12 @@ end
 
 friendly_name(o::FlagOption) = "flag option"
 primary_name(o::FlagOption) = o.names[1]
-function usage_token(o::FlagOption)
+function to_usage_tokens(o::FlagOption)
     latter_part = 1 ≤ length(o.negators) ? " | " * o.negators[1] : ""
-    "[" * o.names[1] * latter_part * "]"
+    ["[" * o.names[1] * latter_part * "]"]
+end
+function print_description(io::IO, o::FlagOption)
+    @assert false
 end
 
 
@@ -245,26 +262,30 @@ end
 
 friendly_name(o::Positional) = "positional argument"
 primary_name(o::Positional) = o.names[1]
-function usage_token(o::Positional)
+function to_usage_tokens(o::Positional)
     name = uppercase(o.names[1])
     if o.multiple
-        name * " [" * name * "...]"
+        [name * " [" * name * "...]"]
     else
-        name
+        [name]
     end
+end
+function print_description(io::IO, o::Positional)
+    @assert false
 end
 
 
 """
-    OptionGroup
+    OptionGroup(name::String, options::AbstractOption...)
 
 `OptionGroup` contains one or more `AbstractOption`s and accepts command line arguments if
 it sees one of the options. In other word, this is an OR operator for `AbstractOption`s.
 """
 struct OptionGroup <: AbstractOptionGroup
+    name::String
     options
 
-    OptionGroup(options::AbstractOption...) = new(options)
+    OptionGroup(name::String, options::AbstractOption...) = new(name, options)
 end
 
 function consume!(ctx, o::OptionGroup, args, i)
@@ -275,6 +296,24 @@ function consume!(ctx, o::OptionGroup, args, i)
         end
     end
     return -1, nothing
+end
+
+function to_usage_tokens(o::OptionGroup)
+    tokens = Vector{String}()
+    for option in o.options
+        append!(tokens, to_usage_tokens(option))
+    end
+    tokens
+end
+
+function print_description(io::IO, o::OptionGroup)
+    if o.name != ""
+        println(io)
+        println(io, "  " * o.name * ":")
+    end
+    for option in o.options
+        print_description(io, option)
+    end
 end
 
 function Base.iterate(o::OptionGroup)
@@ -299,29 +338,33 @@ struct CliOptionSpec
         if program == ""
             program = "PROGRAM"
         end
-        new(OptionGroup(options...), program)
+        new(OptionGroup("", options...), program)
     end
 end
 
 
 """
-    print_usage([io::IO], spec::CliOptionSpec)
+    print_usage([io::IO], spec::CliOptionSpec; verbose = false)
 
 Write to `io` a usage (help) message for the command line specification.
+If `verbose` is true, not only the usage message but also long description will be written.
 """
-function print_usage(spec::CliOptionSpec)
-    print_usage(stdout, spec)
-end
-
-function print_usage(io::IO, spec::CliOptionSpec)
+function print_usage(io::IO, spec::CliOptionSpec; verbose = false)
     tokens = []
     for option in spec.root
-        if !(option isa AbstractOptionGroup)
-            push!(tokens, usage_token(option))
-        end
+        push!(tokens, to_usage_tokens(option)...)
     end
-    println(io, "Usage: " * spec.program * " " *
-            join(tokens, " "))
+
+    println(io, "Usage: " * spec.program * " " * join(tokens, " "))
+    if verbose
+        println(io)
+        println(io, "Options:")
+        print_description(io, spec.root)
+    end
+end
+
+function print_usage(spec::CliOptionSpec)
+    print_usage(stdout, spec)
 end
 
 
