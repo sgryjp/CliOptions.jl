@@ -19,11 +19,25 @@ Base.showerror(io::IO, e::CliOptionError) = print(io, "CliOptionError: " * e.msg
 
 Abstract supertype representing a command line option. Concrete subtypes of this are:
 
-- [`NamedOption`](@ref)
-- [`Positional`](@ref)
+- [`NamedOption`](@ref) ... a command line option
+- [`Positional`](@ref) ... a command line argument which isn't a `NamedOption`
 - [`OptionGroup`](@ref)
 """
 abstract type AbstractOption end
+
+
+"""
+    AbstractOptionGroup
+
+Abstract type representing a group of command line options. Each command line option belongs
+to a group is `AbstractOption`, and `AbstractOptionGroup` itself is also an
+`AbstractOption`.
+
+There are 1 defined subtype:
+
+- OptionGroup
+"""
+abstract type AbstractOptionGroup <: AbstractOption end
 
 
 """
@@ -86,6 +100,7 @@ end
 
 friendly_name(o::NamedOption) = "option"
 primary_name(o::NamedOption) = o.names[1]
+usage_token(o::NamedOption) = o.names[1] * " " * uppercase(encode(o.names[2]))
 
 
 """
@@ -158,7 +173,11 @@ function consume!(ctx, o::FlagOption, args, i)
 end
 
 friendly_name(o::FlagOption) = "flag option"
-primary_name(o::FlagOption) = o.singular_name
+primary_name(o::FlagOption) = o.names[1]
+function usage_token(o::FlagOption)
+    latter_part = 1 ≤ length(o.negators) ? " | " * o.negators[1] : ""
+    "[" * o.names[1] * latter_part * "]"
+end
 
 
 """
@@ -234,7 +253,7 @@ primary_name(o::Positional) = o.names[1]
 `OptionGroup` contains one or more `AbstractOption`s and accepts command line arguments if
 it sees one of the options. In other word, this is an OR operator for `AbstractOption`s.
 """
-struct OptionGroup <: AbstractOption
+struct OptionGroup <: AbstractOptionGroup
     options
 
     OptionGroup(options::AbstractOption...) = new(options)
@@ -250,18 +269,53 @@ function consume!(ctx, o::OptionGroup, args, i)
     return -1, nothing
 end
 
+function Base.iterate(o::OptionGroup)
+    1 ≤ length(o.options) ? (o.options[1], 2) : nothing
+end
+
+function Base.iterate(o::OptionGroup, state)
+    state ≤ length(o.options) ? (o.options[state], state+1) : nothing
+end
+
 
 """
-    CliOptionSpec(options::AbstractOption...)
+    CliOptionSpec(options::AbstractOption...; program = PROGRAM_FILE)
 
 A type representing a command line option specification.
 """
 struct CliOptionSpec
     root::OptionGroup
+    program::String
 
-    function CliOptionSpec(options::AbstractOption...)
-        new(OptionGroup(options...))
+    function CliOptionSpec(options::AbstractOption...; program = PROGRAM_FILE)
+        if program == ""
+            program = "PROGRAM"
+        end
+        new(OptionGroup(options...), program)
     end
+end
+
+
+"""
+    print_usage([io::IO], spec::CliOptionSpec)
+
+Write to `io` a usage (help) message for the command line specification.
+"""
+function print_usage(spec::CliOptionSpec)
+    print_usage(stdout, spec)
+end
+
+function print_usage(io::IO, spec::CliOptionSpec)
+    tokens = []
+    for option in spec.root
+        if option isa FlagOption
+            push!(tokens, usage_token(option))
+        elseif option isa NamedOption
+            push!(tokens, option.names[1] * " " * uppercase(encode(option.names[2])))
+        end
+    end
+    println(io, "Usage: " * spec.program * " " *
+            join(tokens, " "))
 end
 
 
@@ -355,6 +409,7 @@ export AbstractOption,
        NamedOption,
        OptionGroup,
        Positional,
-       parse_args
+       parse_args,
+       print_usage
 
 end # module
