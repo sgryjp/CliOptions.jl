@@ -2,9 +2,10 @@ module CliOptions
 
 
 """
-    CliOptionError(msg::String)
+    CliOptionError
 
-An error occurred inside CliOptions module.
+An error occurred inside CliOptions module. Detailed error message can be retrieved by `msg`
+field.
 """
 struct CliOptionError <: Exception
     msg::String
@@ -12,19 +13,25 @@ end
 
 Base.showerror(io::IO, e::CliOptionError) = print(io, "CliOptionError: " * e.msg)
 
+
 """
     AbstractOption
 
-A definition of a command line option. Defined subtypes of this type are:
+Abstract supertype representing a command line option. Concrete subtypes of this are:
 
-- NamedOption
-- Positional
+- [`NamedOption`](@ref)
+- [`Positional`](@ref)
+- [`OptionGroup`](@ref)
 """
 abstract type AbstractOption end
 
-#
-# NamedOption
-#
+
+"""
+    NamedOption(names::String...)
+
+`NamedOption` represents the most basic command option type. Typycally, a named option
+appears in a format like  `-a b`, `--option-name value` or `--option-name=value`.
+"""
 struct NamedOption <: AbstractOption
     names::Vector{String}
 
@@ -79,6 +86,7 @@ end
 
 friendly_name(o::NamedOption) = "option"
 primary_name(o::NamedOption) = o.names[1]
+
 
 """
     FlagOption
@@ -244,9 +252,9 @@ end
 
 
 """
-    CliOptionSpec
+    CliOptionSpec(options::AbstractOption...)
 
-`CliOptionSpec` defines how to parse command line options.
+A type representing a command line option specification.
 """
 struct CliOptionSpec
     root::OptionGroup
