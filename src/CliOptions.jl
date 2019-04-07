@@ -67,14 +67,14 @@ struct NamedOption <: AbstractOption
 end
 
 """
-    consume!(ctx, option, args, i)
+    consume!(counter, option, args, i)
 
 Consumes zero or more arguments from `args` starting from index `i` according to the
 `option`. This function returns a tuple of an index of next parsing position and a tuple of
 key-value pairs. If the option is not matched for the argument, `(-1, nothing)` will be
 returned.
 """
-function consume!(ctx, o::NamedOption, args, i)
+function consume!(counter, o::NamedOption, args, i)
     @assert 1 ≤ i ≤ length(args)
     if args[i] ∉ o.names
         return -1, nothing
@@ -84,16 +84,16 @@ function consume!(ctx, o::NamedOption, args, i)
     end
 
     # Get how many times this option was evaluated
-    count::Int = get(ctx, o, -1)
+    count::Int = get(counter, o, -1)
     if count == -1
-        ctx[o] = 0
+        counter[o] = 0
     end
 
     # Skip if this node is already processed
     if 1 ≤ count
         return -1, nothing
     end
-    ctx[o] += 1
+    counter[o] += 1
 
     value = args[i + 1]
     i + 2, Tuple(encode(name) => value for name in o.names)
@@ -147,7 +147,7 @@ struct FlagOption <: AbstractOption
     end
 end
 
-function consume!(ctx, o::FlagOption, args, i)
+function consume!(counter, o::FlagOption, args, i)
     @assert 1 ≤ i ≤ length(args)
 
     if startswith(args[i], "--")
@@ -171,12 +171,12 @@ function consume!(ctx, o::FlagOption, args, i)
         return -1, nothing
     end
 
-    # Update context
-    count::Int = get(ctx, o, -1)
+    # Update counter
+    count::Int = get(counter, o, -1)
     if count == -1
-        ctx[o] = 0
+        counter[o] = 0
     else
-        ctx[o] = count + 1
+        counter[o] = count + 1
     end
 
     # Construct parsed values
@@ -231,14 +231,14 @@ struct Positional <: AbstractOption
     end
 end
 
-function consume!(ctx, o::Positional, args, i)
+function consume!(counter, o::Positional, args, i)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
 
     # Get how many times this option was evaluated
-    count::Int = get(ctx, o, -1)
+    count::Int = get(counter, o, -1)
     if count == -1
-        ctx[o] = 0
+        counter[o] = 0
     end
 
     # Skip if this node is already processed
@@ -249,11 +249,11 @@ function consume!(ctx, o::Positional, args, i)
 
     if o.multiple
         value = args[i:end]
-        ctx[o] += length(value)
+        counter[o] += length(value)
         next_index = i + length(value)
     else
         value = args[i]
-        ctx[o] += 1
+        counter[o] += 1
         next_index = i + 1
     end
 
@@ -288,9 +288,9 @@ struct OptionGroup <: AbstractOptionGroup
     OptionGroup(name::String, options::AbstractOption...) = new(name, options)
 end
 
-function consume!(ctx, o::OptionGroup, args, i)
+function consume!(counter, o::OptionGroup, args, i)
     for option in o.options
-        next_index, pairs = consume!(ctx, option, args, i)
+        next_index, pairs = consume!(counter, option, args, i)
         if 0 < next_index
             return next_index, pairs
         end
@@ -375,6 +375,9 @@ Dict-like object holding parsing result of command line options.
 """
 struct ParsedArguments
     _dict
+    _counter
+
+    ParsedArguments() = new(Dict{String,Any}(),Dict{AbstractOption,Int}())
 end
 
 function Base.getindex(args::ParsedArguments, key)
@@ -393,6 +396,8 @@ end
 function Base.getproperty(args::ParsedArguments, name::Symbol)
     if name == :_dict
         return getfield(args, :_dict)
+    elseif name == :_counter
+        return getfield(args, :_counter)
     else
         return getfield(args, :_dict)[String(name)]
     end
@@ -408,42 +413,40 @@ Parse command line options according to `spec`.
 `Base.ARGS` which is an array of command line arguments passed to the Julia script.
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
-    dict = Dict{String,Any}()
-    root::OptionGroup = spec.root
-    ctx = Dict{AbstractOption,Int}()
+    result = ParsedArguments()
 
     # Parse arguments
     i = 1
     while i ≤ length(args)
-        next_index, pairs = consume!(ctx, root, args, i)
+        next_index, pairs = consume!(result._counter, spec.root, args, i)
         if next_index < 0
             throw(CliOptionError("Unrecognized argument: " * args[i]))
         end
 
         for (k, v) ∈ pairs
-            dict[k] = v
+            result._dict[k] = v
         end
         i = next_index
     end
 
-    # Take care of omitted options  #TODO: Can this be done by init_context!(ctx, option)?
-    for option ∈ (o for o ∈ root.options if o ∉ keys(ctx))
+    # Take care of omitted options  #TODO: Improve contron flow
+    for option ∈ (o for o ∈ spec.root.options if o ∉ keys(result._counter))
         if option isa FlagOption
             # Set implicit default boolean values
-            foreach(k->dict[encode(k)] = false, option.names)
-            foreach(k->dict[encode(k)] = true, option.negators)
+            foreach(k->result._dict[encode(k)] = false, option.names)
+            foreach(k->result._dict[encode(k)] = true, option.negators)
         elseif option isa Positional
             if option.default === nothing
                 msg = "A " * friendly_name(option) *
                       " \"" * primary_name(option) * "\" was not specified"
                 throw(CliOptionError(msg))
             else
-                foreach(k->dict[encode(k)] = option.default, option.names)
+                foreach(k->result._dict[encode(k)] = option.default, option.names)
             end
         end
     end
 
-    ParsedArguments(dict)
+    result
 end
 
 # Internals
