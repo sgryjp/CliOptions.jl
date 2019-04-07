@@ -75,7 +75,7 @@ key-value pairs. If the option is not matched for the argument, `(-1, nothing)` 
 returned.
 """
 function consume!(ctx, o::NamedOption, args, i)
-    @assert i ≤ length(args)
+    @assert 1 ≤ i ≤ length(args)
     if args[i] ∉ o.names
         return -1, nothing
     end
@@ -148,7 +148,7 @@ struct FlagOption <: AbstractOption
 end
 
 function consume!(ctx, o::FlagOption, args, i)
-    @assert i ≤ length(args)
+    @assert 1 ≤ i ≤ length(args)
 
     if startswith(args[i], "--")
         if args[i] ∈ o.names
@@ -171,7 +171,7 @@ function consume!(ctx, o::FlagOption, args, i)
         return -1, nothing
     end
 
-    # Update counter
+    # Update context
     count::Int = get(ctx, o, -1)
     if count == -1
         ctx[o] = 0
@@ -232,7 +232,7 @@ struct Positional <: AbstractOption
 end
 
 function consume!(ctx, o::Positional, args, i)
-    @assert i ≤ length(args)
+    @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
 
     # Get how many times this option was evaluated
