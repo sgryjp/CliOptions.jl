@@ -1,6 +1,5 @@
 using Test
 using CliOptions
-using CliOptions: consume!
 
 @testset "FlagOption()" begin
     @testset "ctor" begin
@@ -13,6 +12,7 @@ using CliOptions: consume!
         @test_throws ArgumentError FlagOption("-a"; negators = ["a"])
         @test_throws ArgumentError FlagOption("-a"; negators = ["-"])
         @test_throws ArgumentError FlagOption("-a"; negators = ["--"])
+        #@test_throws ArgumentError FlagOption("-a"; negators = ["-a"])  #TODO
         option = FlagOption("-a")
         @test option.names == ["-a"]
         @test option.negators == String[]
@@ -25,24 +25,24 @@ using CliOptions: consume!
         option = FlagOption("-i", "--ignore-case")
 
         let ctx = Dict{AbstractOption,Int}()
-            @test_throws AssertionError consume!(ctx, option, String[], 1)
+            @test_throws AssertionError CliOptions.consume!(ctx, option, String[], 1)
         end
         let ctx = Dict{AbstractOption,Int}()
             # Splitting optchars are done by parse_args()
-            @test_throws AssertionError consume!(ctx, option, ["-ab"], 1)
+            @test_throws AssertionError CliOptions.consume!(ctx, option, ["-ab"], 1)
         end
         let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = consume!(ctx, option, ["foo"], 1)
+            next_index, pairs = CliOptions.consume!(ctx, option, ["foo"], 1)
             @test next_index == -1
             @test pairs === nothing
         end
         let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = consume!(ctx, option, ["-i"], 1)
+            next_index, pairs = CliOptions.consume!(ctx, option, ["-i"], 1)
             @test next_index == 2
             @test pairs == ("i" => true, "ignore_case" => true)
         end
         let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = consume!(ctx, option, ["--ignore-case"], 1)
+            next_index, pairs = CliOptions.consume!(ctx, option, ["--ignore-case"], 1)
             @test next_index == 2
             @test pairs == ("i" => true, "ignore_case" => true)
         end
@@ -52,29 +52,29 @@ using CliOptions: consume!
         option = FlagOption("-i", negators = ["-c", "--case-sensitive"])
 
         let ctx = Dict{AbstractOption,Int}()
-            @test_throws AssertionError consume!(ctx, option, String[], 1)
+            @test_throws AssertionError CliOptions.consume!(ctx, option, String[], 1)
         end
         let ctx = Dict{AbstractOption,Int}()
             # Splitting optchars are done by parse_args()
-            @test_throws AssertionError consume!(ctx, option, ["-ab"], 1)
+            @test_throws AssertionError CliOptions.consume!(ctx, option, ["-ab"], 1)
         end
         let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = consume!(ctx, option, ["foo"], 1)
+            next_index, pairs = CliOptions.consume!(ctx, option, ["foo"], 1)
             @test next_index == -1
             @test pairs === nothing
         end
         let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = consume!(ctx, option, ["-i"], 1)
+            next_index, pairs = CliOptions.consume!(ctx, option, ["-i"], 1)
             @test next_index == 2
             @test pairs == ("i" => true, "c" => false, "case_sensitive" => false)
         end
         let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = consume!(ctx, option, ["-c"], 1)
+            next_index, pairs = CliOptions.consume!(ctx, option, ["-c"], 1)
             @test next_index == 2
             @test pairs == ("i" => false, "c" => true, "case_sensitive" => true)
         end
         let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = consume!(ctx, option, ["--case-sensitive"], 1)
+            next_index, pairs = CliOptions.consume!(ctx, option, ["--case-sensitive"], 1)
             @test next_index == 2
             @test pairs == ("i" => false, "c" => true, "case_sensitive" => true)
         end

@@ -20,6 +20,7 @@ using CliOptions
             (names, ["-d", "3"],      1, (3, ("d" => "3", "depth" => "3"))),
             (names, ["a", "-d"],      2, CliOptionError),
             (names, ["a", "-d", "3"], 2, (4, ("d" => "3", "depth" => "3"))),
+            #(names, ["a", "-d=3"],    2, (3, ("d" => "3", "depth" => "3"))),  #TODO
         ]
         for (names, arg, index, expected) in test_cases
             option = NamedOption(names...)
