@@ -41,6 +41,42 @@ abstract type AbstractOptionGroup <: AbstractOption end
 
 
 """
+    ParsedArguments
+
+Dict-like object holding parsing result of command line options.
+"""
+struct ParsedArguments
+    _dict
+    _counter
+
+    ParsedArguments() = new(Dict{String,Any}(),Dict{AbstractOption,Int}())
+end
+
+function Base.getindex(args::ParsedArguments, key)
+    k = key isa Symbol ? String(key) : key
+    getindex(args._dict, k)
+end
+
+function Base.propertynames(args::ParsedArguments, private = false)
+    vcat([:_dict], [Symbol(k) for (k, v) ∈ getfield(args, :_dict)])
+end
+
+function Base.getproperty(args::ParsedArguments, name::String)
+    Base.getproperty(args::ParsedArguments, Symbol(name))
+end
+
+function Base.getproperty(args::ParsedArguments, name::Symbol)
+    if name == :_dict
+        return getfield(args, :_dict)
+    elseif name == :_counter
+        return getfield(args, :_counter)
+    else
+        return getfield(args, :_dict)[String(name)]
+    end
+end
+
+
+"""
     NamedOption(names::String...)
 
 `NamedOption` represents the most basic command option type. Typycally, a named option
@@ -64,6 +100,10 @@ struct NamedOption <: AbstractOption
         end
         new([n for n ∈ names], help)
     end
+end
+
+function set_default!(result::ParsedArguments, o::NamedOption)
+    # noop
 end
 
 """
@@ -145,6 +185,11 @@ struct FlagOption <: AbstractOption
         end
         new([n for n ∈ names], [n for n ∈ negators])
     end
+end
+
+function set_default!(result::ParsedArguments, o::FlagOption)
+    foreach(k -> result._dict[encode(k)] = false, o.names)
+    foreach(k -> result._dict[encode(k)] = true, o.negators)
 end
 
 function consume!(counter, o::FlagOption, args, i)
@@ -231,6 +276,10 @@ struct Positional <: AbstractOption
     end
 end
 
+function set_default!(result::ParsedArguments, o::Positional)
+    foreach(k -> result._dict[encode(k)] = o.default, o.names)
+end
+
 function consume!(counter, o::Positional, args, i)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
@@ -286,6 +335,10 @@ struct OptionGroup <: AbstractOptionGroup
     options
 
     OptionGroup(name::String, options::AbstractOption...) = new(name, options)
+end
+
+function set_default!(result::ParsedArguments, o::OptionGroup)
+    foreach(o -> set_default!(result._dict, o), o.options)
 end
 
 function consume!(counter, o::OptionGroup, args, i)
@@ -369,42 +422,6 @@ end
 
 
 """
-    ParsedArguments
-
-Dict-like object holding parsing result of command line options.
-"""
-struct ParsedArguments
-    _dict
-    _counter
-
-    ParsedArguments() = new(Dict{String,Any}(),Dict{AbstractOption,Int}())
-end
-
-function Base.getindex(args::ParsedArguments, key)
-    k = key isa Symbol ? String(key) : key
-    getindex(args._dict, k)
-end
-
-function Base.propertynames(args::ParsedArguments, private = false)
-    vcat([:_dict], [Symbol(k) for (k, v) ∈ getfield(args, :_dict)])
-end
-
-function Base.getproperty(args::ParsedArguments, name::String)
-    Base.getproperty(args::ParsedArguments, Symbol(name))
-end
-
-function Base.getproperty(args::ParsedArguments, name::Symbol)
-    if name == :_dict
-        return getfield(args, :_dict)
-    elseif name == :_counter
-        return getfield(args, :_counter)
-    else
-        return getfield(args, :_dict)[String(name)]
-    end
-end
-
-
-"""
     parse_args(spec::CliOptionSpec, args=ARGS)
 
 Parse command line options according to `spec`.
@@ -414,6 +431,9 @@ Parse command line options according to `spec`.
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParsedArguments()
+
+    # Setup default values
+    foreach(o -> set_default!(result, o), spec.root)
 
     # Parse arguments
     i = 1
@@ -431,11 +451,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
 
     # Take care of omitted options  #TODO: Improve contron flow
     for option ∈ (o for o ∈ spec.root.options if o ∉ keys(result._counter))
-        if option isa FlagOption
-            # Set implicit default boolean values
-            foreach(k->result._dict[encode(k)] = false, option.names)
-            foreach(k->result._dict[encode(k)] = true, option.negators)
-        elseif option isa Positional
+        if option isa Positional
             if option.default === nothing
                 msg = "A " * friendly_name(option) *
                       " \"" * primary_name(option) * "\" was not specified"
