@@ -24,11 +24,11 @@ using CliOptions
         ]
         for (names, arg, index, expected) in test_cases
             option = NamedOption(names...)
-            ctx = Dict{AbstractOption,Int}()
+            result = CliOptions.ParsedArguments()
             if expected isa Type && expected <: Exception
-                @test_throws expected CliOptions.consume!(ctx, option, arg, index)
+                @test_throws expected CliOptions.consume!(result, option, arg, index)
             else
-                @test CliOptions.consume!(ctx, option, arg, index) == expected
+                @test CliOptions.consume!(result, option, arg, index) == expected
             end
         end
     end

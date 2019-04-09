@@ -106,15 +106,7 @@ function set_default!(result::ParsedArguments, o::NamedOption)
     # noop
 end
 
-"""
-    consume!(counter, option, args, i)
-
-Consumes zero or more arguments from `args` starting from index `i` according to the
-`option`. This function returns a tuple of an index of next parsing position and a tuple of
-key-value pairs. If the option is not matched for the argument, `(-1, nothing)` will be
-returned.
-"""
-function consume!(counter, o::NamedOption, args, i)
+function consume!(result::ParsedArguments, o::NamedOption, args, i)
     @assert 1 ≤ i ≤ length(args)
     if args[i] ∉ o.names
         return -1, nothing
@@ -124,16 +116,16 @@ function consume!(counter, o::NamedOption, args, i)
     end
 
     # Get how many times this option was evaluated
-    count::Int = get(counter, o, -1)
+    count::Int = get(result._counter, o, -1)
     if count == -1
-        counter[o] = 0
+        result._counter[o] = 0
     end
 
     # Skip if this node is already processed
     if 1 ≤ count
         return -1, nothing
     end
-    counter[o] += 1
+    result._counter[o] += 1
 
     value = args[i + 1]
     i + 2, Tuple(encode(name) => value for name in o.names)
@@ -192,7 +184,7 @@ function set_default!(result::ParsedArguments, o::FlagOption)
     foreach(k -> result._dict[encode(k)] = true, o.negators)
 end
 
-function consume!(counter, o::FlagOption, args, i)
+function consume!(result::ParsedArguments, o::FlagOption, args, i)
     @assert 1 ≤ i ≤ length(args)
 
     if startswith(args[i], "--")
@@ -217,11 +209,11 @@ function consume!(counter, o::FlagOption, args, i)
     end
 
     # Update counter
-    count::Int = get(counter, o, -1)
+    count::Int = get(result._counter, o, -1)
     if count == -1
-        counter[o] = 0
+        result._counter[o] = 0
     else
-        counter[o] = count + 1
+        result._counter[o] = count + 1
     end
 
     # Construct parsed values
@@ -280,14 +272,14 @@ function set_default!(result::ParsedArguments, o::Positional)
     foreach(k -> result._dict[encode(k)] = o.default, o.names)
 end
 
-function consume!(counter, o::Positional, args, i)
+function consume!(result::ParsedArguments, o::Positional, args, i)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
 
     # Get how many times this option was evaluated
-    count::Int = get(counter, o, -1)
+    count::Int = get(result._counter, o, -1)
     if count == -1
-        counter[o] = 0
+        result._counter[o] = 0
     end
 
     # Skip if this node is already processed
@@ -298,11 +290,11 @@ function consume!(counter, o::Positional, args, i)
 
     if o.multiple
         value = args[i:end]
-        counter[o] += length(value)
+        result._counter[o] += length(value)
         next_index = i + length(value)
     else
         value = args[i]
-        counter[o] += 1
+        result._counter[o] += 1
         next_index = i + 1
     end
 
@@ -341,9 +333,9 @@ function set_default!(result::ParsedArguments, o::OptionGroup)
     foreach(o -> set_default!(result._dict, o), o.options)
 end
 
-function consume!(counter, o::OptionGroup, args, i)
+function consume!(result::ParsedArguments, o::OptionGroup, args, i)
     for option in o.options
-        next_index, pairs = consume!(counter, option, args, i)
+        next_index, pairs = consume!(result, option, args, i)
         if 0 < next_index
             return next_index, pairs
         end
@@ -438,7 +430,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     # Parse arguments
     i = 1
     while i ≤ length(args)
-        next_index, pairs = consume!(result._counter, spec.root, args, i)
+        next_index, pairs = consume!(result, spec.root, args, i)
         if next_index < 0
             throw(CliOptionError("Unrecognized argument: " * args[i]))
         end

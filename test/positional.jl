@@ -31,48 +31,49 @@ using CliOptions: consume!
 
     @testset "consume(::Positional)" begin
         @testset "empty args" begin
-            option = Positional("file")
-            ctx = Dict{AbstractOption,Int}()
-            @test_throws AssertionError consume!(ctx, option, Vector{String}(), 1)
+            let result = CliOptions.ParsedArguments()
+                option = Positional("file")
+                @test_throws AssertionError consume!(result, option, Vector{String}(), 1)
+            end
         end
 
         @testset "single" begin
-            let ctx = Dict{AbstractOption,Int}()
+            let result = CliOptions.ParsedArguments()
                 option = Positional("file")
-                next_index, pairs = consume!(ctx, option, [""], 1)
+                next_index, pairs = consume!(result, option, [""], 1)
                 @test next_index == 2
                 @test pairs == ("file" => "",)
             end
-            let ctx = Dict{AbstractOption,Int}()
+            let result = CliOptions.ParsedArguments()
                 option = Positional("file")
-                next_index, pairs = consume!(ctx, option, ["-d"], 1)
+                next_index, pairs = consume!(result, option, ["-d"], 1)
                 @test next_index == 2
                 @test pairs == ("file" => "-d",)
             end
-            let ctx = Dict{AbstractOption,Int}()
+            let result = CliOptions.ParsedArguments()
                 option = Positional("file", "files")
-                next_index, pairs = consume!(ctx, option, ["-d"], 1)
+                next_index, pairs = consume!(result, option, ["-d"], 1)
                 @test next_index == 2
                 @test pairs == ("file" => "-d", "files" => "-d")
             end
         end
 
         @testset "multiple" begin
-            let ctx = Dict{AbstractOption,Int}()
+            let result = CliOptions.ParsedArguments()
                 option = Positional("file", multiple = true)
-                next_index, pairs = consume!(ctx, option, [""], 1)
+                next_index, pairs = consume!(result, option, [""], 1)
                 @test next_index == 2
                 @test pairs == ("file" => [""],)
             end
-            let ctx = Dict{AbstractOption,Int}()
+            let result = CliOptions.ParsedArguments()
                 option = Positional("file", "files", multiple = true)
-                next_index, pairs = consume!(ctx, option, ["a"], 1)
+                next_index, pairs = consume!(result, option, ["a"], 1)
                 @test next_index == 2
                 @test pairs == ("file" => ["a"], "files" => ["a"])
             end
-            let ctx = Dict{AbstractOption,Int}()
+            let result = CliOptions.ParsedArguments()
                 option = Positional("file", multiple = true)
-                next_index, pairs = consume!(ctx, option, ["a", "b"], 1)
+                next_index, pairs = consume!(result, option, ["a", "b"], 1)
                 @test next_index == 3
                 @test pairs == ("file" => ["a", "b"],)
             end
