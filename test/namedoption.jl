@@ -1,11 +1,12 @@
 using Test
 using CliOptions
 
-@testset "NamedOption()" begin  #TODO: 空白を含む名前を拒否
+@testset "NamedOption()" begin
     @testset "ctor" begin
         @test_throws ArgumentError NamedOption()
         @test_throws ArgumentError NamedOption("")
         @test_throws ArgumentError NamedOption("a")
+        #@test_throws ArgumentError NamedOption("a b")  #TODO
         @test NamedOption("-a").names == ["-a"]
         @test NamedOption("-a", "-b").names == ["-a", "-b"]
     end

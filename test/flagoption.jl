@@ -39,12 +39,14 @@ using CliOptions
         let result = CliOptions.ParsedArguments()
             next_index = CliOptions.consume!(result, option, ["-i"], 1)
             @test next_index == 2
+            @test sorted_keys(result._dict) == ["i", "ignore_case"]
             @test result.i == true
             @test result.ignore_case == true
         end
         let result = CliOptions.ParsedArguments()
             next_index = CliOptions.consume!(result, option, ["--ignore-case"], 1)
             @test next_index == 2
+            @test sorted_keys(result._dict) == ["i", "ignore_case"]
             @test result.i == true
             @test result.ignore_case == true
         end
@@ -68,6 +70,7 @@ using CliOptions
         let result = CliOptions.ParsedArguments()
             next_index = CliOptions.consume!(result, option, ["-i"], 1)
             @test next_index == 2
+            @test sorted_keys(result._dict) == ["c", "case_sensitive", "i"]
             @test result.i == true
             @test result.c == false
             @test result.case_sensitive == false
@@ -75,6 +78,7 @@ using CliOptions
         let result = CliOptions.ParsedArguments()
             next_index = CliOptions.consume!(result, option, ["-c"], 1)
             @test next_index == 2
+            @test sorted_keys(result._dict) == ["c", "case_sensitive", "i"]
             @test result.i == false
             @test result.c == true
             @test result.case_sensitive == true
@@ -82,6 +86,7 @@ using CliOptions
         let result = CliOptions.ParsedArguments()
             next_index = CliOptions.consume!(result, option, ["--case-sensitive"], 1)
             @test next_index == 2
+            @test sorted_keys(result._dict) == ["c", "case_sensitive", "i"]
             @test result.i == false
             @test result.c == true
             @test result.case_sensitive == true
