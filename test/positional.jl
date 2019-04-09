@@ -40,42 +40,44 @@ using CliOptions: consume!
         @testset "single" begin
             let result = CliOptions.ParsedArguments()
                 option = Positional("file")
-                next_index, pairs = consume!(result, option, [""], 1)
+                next_index = consume!(result, option, [""], 1)
                 @test next_index == 2
-                @test pairs == ("file" => "",)
+                @test result.file == ""
             end
             let result = CliOptions.ParsedArguments()
                 option = Positional("file")
-                next_index, pairs = consume!(result, option, ["-d"], 1)
+                next_index = consume!(result, option, ["-d"], 1)
                 @test next_index == 2
-                @test pairs == ("file" => "-d",)
+                @test result.file == "-d"
             end
             let result = CliOptions.ParsedArguments()
                 option = Positional("file", "files")
-                next_index, pairs = consume!(result, option, ["-d"], 1)
+                next_index = consume!(result, option, ["-d"], 1)
                 @test next_index == 2
-                @test pairs == ("file" => "-d", "files" => "-d")
+                @test result.file == "-d"
+                @test result.files == "-d"
             end
         end
 
         @testset "multiple" begin
             let result = CliOptions.ParsedArguments()
                 option = Positional("file", multiple = true)
-                next_index, pairs = consume!(result, option, [""], 1)
+                next_index = consume!(result, option, [""], 1)
                 @test next_index == 2
-                @test pairs == ("file" => [""],)
+                @test result.file == [""]
             end
             let result = CliOptions.ParsedArguments()
                 option = Positional("file", "files", multiple = true)
-                next_index, pairs = consume!(result, option, ["a"], 1)
+                next_index = consume!(result, option, ["a"], 1)
                 @test next_index == 2
-                @test pairs == ("file" => ["a"], "files" => ["a"])
+                @test result.file == ["a"]
+                @test result.files == ["a"]
             end
             let result = CliOptions.ParsedArguments()
                 option = Positional("file", multiple = true)
-                next_index, pairs = consume!(result, option, ["a", "b"], 1)
+                next_index = consume!(result, option, ["a", "b"], 1)
                 @test next_index == 3
-                @test pairs == ("file" => ["a", "b"],)
+                @test result.file == ["a", "b"]
             end
         end
     end

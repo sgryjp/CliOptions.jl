@@ -32,19 +32,21 @@ using CliOptions
             @test_throws AssertionError CliOptions.consume!(result, option, ["-ab"], 1)
         end
         let result = CliOptions.ParsedArguments()
-            next_index, pairs = CliOptions.consume!(result, option, ["foo"], 1)
+            next_index = CliOptions.consume!(result, option, ["foo"], 1)
             @test next_index == -1
-            @test pairs === nothing
+            @test isempty(result._dict)
         end
         let result = CliOptions.ParsedArguments()
-            next_index, pairs = CliOptions.consume!(result, option, ["-i"], 1)
+            next_index = CliOptions.consume!(result, option, ["-i"], 1)
             @test next_index == 2
-            @test pairs == ("i" => true, "ignore_case" => true)
+            @test result.i == true
+            @test result.ignore_case == true
         end
         let result = CliOptions.ParsedArguments()
-            next_index, pairs = CliOptions.consume!(result, option, ["--ignore-case"], 1)
+            next_index = CliOptions.consume!(result, option, ["--ignore-case"], 1)
             @test next_index == 2
-            @test pairs == ("i" => true, "ignore_case" => true)
+            @test result.i == true
+            @test result.ignore_case == true
         end
     end
 
@@ -59,24 +61,30 @@ using CliOptions
             @test_throws AssertionError CliOptions.consume!(result, option, ["-ab"], 1)
         end
         let result = CliOptions.ParsedArguments()
-            next_index, pairs = CliOptions.consume!(result, option, ["foo"], 1)
+            next_index = CliOptions.consume!(result, option, ["foo"], 1)
             @test next_index == -1
-            @test pairs === nothing
+            @test isempty(result._dict)
         end
         let result = CliOptions.ParsedArguments()
-            next_index, pairs = CliOptions.consume!(result, option, ["-i"], 1)
+            next_index = CliOptions.consume!(result, option, ["-i"], 1)
             @test next_index == 2
-            @test pairs == ("i" => true, "c" => false, "case_sensitive" => false)
+            @test result.i == true
+            @test result.c == false
+            @test result.case_sensitive == false
         end
         let result = CliOptions.ParsedArguments()
-            next_index, pairs = CliOptions.consume!(result, option, ["-c"], 1)
+            next_index = CliOptions.consume!(result, option, ["-c"], 1)
             @test next_index == 2
-            @test pairs == ("i" => false, "c" => true, "case_sensitive" => true)
+            @test result.i == false
+            @test result.c == true
+            @test result.case_sensitive == true
         end
         let result = CliOptions.ParsedArguments()
-            next_index, pairs = CliOptions.consume!(result, option, ["--case-sensitive"], 1)
+            next_index = CliOptions.consume!(result, option, ["--case-sensitive"], 1)
             @test next_index == 2
-            @test pairs == ("i" => false, "c" => true, "case_sensitive" => true)
+            @test result.i == false
+            @test result.c == true
+            @test result.case_sensitive == true
         end
     end
 end

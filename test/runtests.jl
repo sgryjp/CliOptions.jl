@@ -1,6 +1,8 @@
 using Test
 using CliOptions
 
+sorted_keys = sort ∘ collect ∘ keys
+
 @testset "CliOptions" begin
 
     include("internals.jl")

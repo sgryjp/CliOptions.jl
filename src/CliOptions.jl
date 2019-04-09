@@ -103,13 +103,13 @@ struct NamedOption <: AbstractOption
 end
 
 function set_default!(result::ParsedArguments, o::NamedOption)
-    # noop
+    result._counter[o] = 0
 end
 
 function consume!(result::ParsedArguments, o::NamedOption, args, i)
     @assert 1 ≤ i ≤ length(args)
     if args[i] ∉ o.names
-        return -1, nothing
+        return -1
     end
     if length(args) < i + 1
         throw(CliOptionError("A value is needed for option `" * args[i] * "`"))
@@ -123,12 +123,12 @@ function consume!(result::ParsedArguments, o::NamedOption, args, i)
 
     # Skip if this node is already processed
     if 1 ≤ count
-        return -1, nothing
+        return -1
     end
     result._counter[o] += 1
 
-    value = args[i + 1]
-    i + 2, Tuple(encode(name) => value for name in o.names)
+    foreach(k -> result._dict[encode(k)] = args[i + 1], o.names)
+    i + 2
 end
 
 friendly_name(o::NamedOption) = "option"
@@ -180,6 +180,7 @@ struct FlagOption <: AbstractOption
 end
 
 function set_default!(result::ParsedArguments, o::FlagOption)
+    result._counter[o] = 0
     foreach(k -> result._dict[encode(k)] = false, o.names)
     foreach(k -> result._dict[encode(k)] = true, o.negators)
 end
@@ -193,7 +194,7 @@ function consume!(result::ParsedArguments, o::FlagOption, args, i)
         elseif args[i] ∈ o.negators
             value = false
         else
-            return -1, nothing
+            return -1
         end
     elseif startswith(args[i], "-")
         @assert length(args[i]) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
@@ -202,25 +203,20 @@ function consume!(result::ParsedArguments, o::FlagOption, args, i)
         elseif args[i] ∈ o.negators
             value = false
         else
-            return -1, nothing
+            return -1
         end
     else
-        return -1, nothing
+        return -1
     end
 
     # Update counter
     count::Int = get(result._counter, o, -1)
-    if count == -1
-        result._counter[o] = 0
-    else
-        result._counter[o] = count + 1
-    end
+    result._counter[o] = count + 1
 
     # Construct parsed values
-    values = Vector{Pair{String,Bool}}()
-    push!(values, [encode(name) => value for name in o.names]...)
-    push!(values, [encode(name) => !value for name in o.negators]...)
-    i + 1, Tuple(values)
+    foreach(k -> result._dict[encode(k)] = value, o.names)
+    foreach(k -> result._dict[encode(k)] = !value, o.negators)
+    i + 1
 end
 
 friendly_name(o::FlagOption) = "flag option"
@@ -230,7 +226,7 @@ function to_usage_tokens(o::FlagOption)
     ["[" * o.names[1] * latter_part * "]"]
 end
 function print_description(io::IO, o::FlagOption)
-    @assert false
+    @assert false  #TODO
 end
 
 
@@ -269,6 +265,7 @@ struct Positional <: AbstractOption
 end
 
 function set_default!(result::ParsedArguments, o::Positional)
+    result._counter[o] = 0
     foreach(k -> result._dict[encode(k)] = o.default, o.names)
 end
 
@@ -276,29 +273,24 @@ function consume!(result::ParsedArguments, o::Positional, args, i)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
 
-    # Get how many times this option was evaluated
-    count::Int = get(result._counter, o, -1)
-    if count == -1
-        result._counter[o] = 0
-    end
-
     # Skip if this node is already processed
+    count::Int = get(result._counter, o, -1)
     max_nvalues = o.multiple ? Inf : 1
     if max_nvalues ≤ count
-        return -1, nothing
+        return -1
     end
+    result._counter[o] = count + 1
 
+    # Determine value and update result
     if o.multiple
-        value = args[i:end]
-        result._counter[o] += length(value)
-        next_index = i + length(value)
+        values = args[i:end]
+        foreach(k -> result._dict[encode(k)] = values, o.names)
+        return i + length(values)
     else
         value = args[i]
-        result._counter[o] += 1
-        next_index = i + 1
+        foreach(k -> result._dict[encode(k)] = value, o.names)
+        return i + 1
     end
-
-    next_index, Tuple(encode(name) => value for name ∈ o.names)
 end
 
 friendly_name(o::Positional) = "positional argument"
@@ -312,7 +304,7 @@ function to_usage_tokens(o::Positional)
     end
 end
 function print_description(io::IO, o::Positional)
-    @assert false
+    @assert false  #TODO
 end
 
 
@@ -335,12 +327,12 @@ end
 
 function consume!(result::ParsedArguments, o::OptionGroup, args, i)
     for option in o.options
-        next_index, pairs = consume!(result, option, args, i)
+        next_index = consume!(result, option, args, i)
         if 0 < next_index
-            return next_index, pairs
+            return next_index
         end
     end
-    return -1, nothing
+    return -1
 end
 
 function to_usage_tokens(o::OptionGroup)
@@ -430,26 +422,21 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     # Parse arguments
     i = 1
     while i ≤ length(args)
-        next_index, pairs = consume!(result, spec.root, args, i)
+        next_index = consume!(result, spec.root, args, i)
         if next_index < 0
             throw(CliOptionError("Unrecognized argument: " * args[i]))
         end
 
-        for (k, v) ∈ pairs
-            result._dict[k] = v
-        end
         i = next_index
     end
 
     # Take care of omitted options  #TODO: Improve contron flow
-    for option ∈ (o for o ∈ spec.root.options if o ∉ keys(result._counter))
+    for option ∈ spec.root.options
         if option isa Positional
-            if option.default === nothing
+            if get(result._counter, option, 0) ≤ 0 && option.default === nothing
                 msg = "A " * friendly_name(option) *
-                      " \"" * primary_name(option) * "\" was not specified"
+                        " \"" * primary_name(option) * "\" was not specified"
                 throw(CliOptionError(msg))
-            else
-                foreach(k->result._dict[encode(k)] = option.default, option.names)
             end
         end
     end
