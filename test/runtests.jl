@@ -8,6 +8,7 @@ sorted_keys = sort ∘ collect ∘ keys
     include("internals.jl")
     include("namedoption.jl")
     include("flagoption.jl")
+    include("counteroption.jl")
     include("positional.jl")
     include("parse_args.jl")
     include("usage.jl")

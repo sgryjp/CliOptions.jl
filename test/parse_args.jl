@@ -46,6 +46,24 @@ using CliOptions
         @test args.b == true
     end
 
+    @testset "CounterOption" begin  #TODO: 背反
+        spec = CliOptionSpec(CounterOption("-a"; decrementers = ["-b"]), )
+        args = parse_args(spec, ["-a"])
+        @test sorted_keys(args._dict) == ["a"]
+        @test args.a == 1
+
+        args = parse_args(spec, ["-b"])
+        @test sorted_keys(args._dict) == ["a"]
+        @test args.a == -1
+
+        spec = CliOptionSpec(CounterOption("-a"; decrementers = ["-b"]),
+                             CounterOption("-c"))
+        args = parse_args(spec, ["-c"])
+        @test sorted_keys(args._dict) == ["a", "c"]
+        @test args.a == 0
+        @test args.c == 1
+    end
+
     @testset "Positional" begin
         @testset "single, required" begin
             spec = CliOptionSpec(

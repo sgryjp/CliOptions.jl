@@ -231,6 +231,83 @@ end
 
 
 """
+    CounterOption
+
+A type represents a flag-like command line option. Total number of times a `CounterOption`
+was specified becomes the option's value.
+"""
+struct CounterOption <: AbstractOption
+    names::Vector{String}
+    decrementers::Vector{String}
+
+    function CounterOption(names::String...; decrementers::Vector{String} = String[])
+        if length(names) == 0
+            throw(ArgumentError("At least one name for a CounterOption must be specified"))
+        end
+        for name in unique(vcat(collect(names), decrementers))
+            if match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
+                if name == ""
+                    throw(ArgumentError("Name of a CounterOption must not be empty"))
+                elseif match(r"^[^-]", name) !== nothing
+                    throw(ArgumentError("Name of a CounterOption must start with a hyphen: "
+                                        * name))
+                else
+                    throw(ArgumentError("Invalid name for CounterOption: " * name))
+                end
+            end
+        end
+        new([n for n ∈ names], [n for n ∈ decrementers])
+    end
+end
+
+function set_default!(result::ParsedArguments, o::CounterOption)
+    result._counter[o] = 0
+    foreach(k -> result._dict[encode(k)] = 0, o.names)
+end
+
+function consume!(result::ParsedArguments, o::CounterOption, args, i)
+    @assert 1 ≤ i ≤ length(args)
+
+    value = 0
+    if startswith(args[i], "--")
+        if args[i] ∈ o.names
+            value = +1
+        elseif args[i] ∈ o.decrementers
+            value = -1
+        end
+    elseif startswith(args[i], "-")
+        @assert length(args[i]) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
+        if args[i] ∈ o.names
+            value = +1
+        elseif args[i] ∈ o.decrementers
+            value = -1
+        end
+    end
+    if value == 0
+        return -1
+    end
+
+    # Update counter
+    count::Int = get(result._counter, o, -1)
+    result._counter[o] = count + 1
+
+    # Construct parsed values
+    foreach(k -> result._dict[encode(k)] = value, o.names)
+    i + 1
+end
+
+friendly_name(o::CounterOption) = "counter option"
+primary_name(o::CounterOption) = o.names[1]
+function to_usage_tokens(o::CounterOption)
+    latter_part = 1 ≤ length(o.decrementers) ? " | " * o.decrementers[1] : ""
+    ["[" * o.names[1] * latter_part * "]"]
+end
+function print_description(io::IO, o::CounterOption)
+    @assert false  #TODO
+end
+
+
+"""
     Positional
 
 `Positional` represents a command line argument which are not an option name nor an option
@@ -452,6 +529,7 @@ is_option(names) = any([startswith(name, '-') && 2 ≤ length(name) for name ∈
 export AbstractOption,
        CliOptionError,
        CliOptionSpec,
+       CounterOption,
        FlagOption,
        NamedOption,
        OptionGroup,

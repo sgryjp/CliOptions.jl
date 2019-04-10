@@ -14,69 +14,76 @@ using CliOptions
         @test_throws ArgumentError CounterOption("-a"; decrementers = ["--"])
         #@test_throws ArgumentError CounterOption("-a"; decrementers = ["-a"])  #TODO
         option = CounterOption("-a")
-        @test option.super.names == ["-a"]
-        @test option.super.negators == String[]
+        @test option.names == ["-a"]
+        @test option.decrementers == String[]
         option = CounterOption("-a", "-b", decrementers = ["-c", "-d"])
-        @test option.super.names == ["-a", "-b"]
-        @test option.super.negators == ["-c", "-d"]
+        @test option.names == ["-a", "-b"]
+        @test option.decrementers == ["-c", "-d"]
     end
 
     @testset "consume(::CounterOption)" begin
         option = CounterOption("-v", "--verbose")
 
-        let ctx = Dict{AbstractOption,Int}()
-            @test_throws AssertionError CliOptions.consume!(ctx, option, String[], 1)
+        let result = CliOptions.ParsedArguments()
+            @test_throws AssertionError CliOptions.consume!(result, option, String[], 1)
         end
-        let ctx = Dict{AbstractOption,Int}()
+        let result = CliOptions.ParsedArguments()
             # Splitting optchars are done by parse_args()
-            @test_throws AssertionError CliOptions.consume!(ctx, option, ["-wv"], 1)
+            @test_throws AssertionError CliOptions.consume!(result, option, ["-wv"], 1)
         end
-        let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = CliOptions.consume!(ctx, option, ["v"], 1)
+        let result = CliOptions.ParsedArguments()
+            next_index = CliOptions.consume!(result, option, ["v"], 1)
             @test next_index == -1
-            @test pairs === nothing
+            @test sorted_keys(result._dict) == []
         end
-        let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = CliOptions.consume!(ctx, option, ["-v"], 1)
+        let result = CliOptions.ParsedArguments()
+            next_index = CliOptions.consume!(result, option, ["-v"], 1)
             @test next_index == 2
-            @test pairs == ("v" => :incr__, "verbose" => :incr__)
+            @test sorted_keys(result._dict) == ["v", "verbose"]
+            @test result.v == 1
+            @test result.verbose == 1
         end
-        let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = CliOptions.consume!(ctx, option, ["--verbose"], 1)
+        let result = CliOptions.ParsedArguments()
+            next_index = CliOptions.consume!(result, option, ["--verbose"], 1)
             @test next_index == 2
-            @test pairs == ("v" => :incr__, "verbose" => :incr__)
+            @test sorted_keys(result._dict) == ["v", "verbose"]
+            @test result.v == 1
+            @test result.verbose == 1
         end
     end
 
     @testset "consume(::CounterOption); decrementers" begin
         option = CounterOption("-v", decrementers = ["-q", "--quiet"])
 
-        let ctx = Dict{AbstractOption,Int}()
-            @test_throws AssertionError CliOptions.consume!(ctx, option, String[], 1)
+        let result = CliOptions.ParsedArguments()
+            @test_throws AssertionError CliOptions.consume!(result, option, String[], 1)
         end
-        let ctx = Dict{AbstractOption,Int}()
+        let result = CliOptions.ParsedArguments()
             # Splitting optchars are done by parse_args()
-            @test_throws AssertionError CliOptions.consume!(ctx, option, ["-wv"], 1)
+            @test_throws AssertionError CliOptions.consume!(result, option, ["-wv"], 1)
         end
-        let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = CliOptions.consume!(ctx, option, ["v"], 1)
+        let result = CliOptions.ParsedArguments()
+            next_index = CliOptions.consume!(result, option, ["v"], 1)
             @test next_index == -1
-            @test pairs === nothing
+            @test sorted_keys(result._dict) == []
         end
-        let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = CliOptions.consume!(ctx, option, ["-v"], 1)
+        let result = CliOptions.ParsedArguments()
+            next_index = CliOptions.consume!(result, option, ["-v"], 1)
             @test next_index == 2
-            @test pairs == ("v" => :incr__, "q" => :decr__, "quiet" => :decr__)
+            @test sorted_keys(result._dict) == ["v"]
+            @test result.v == 1
         end
-        let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = CliOptions.consume!(ctx, option, ["-q"], 1)
+        let result = CliOptions.ParsedArguments()
+            next_index = CliOptions.consume!(result, option, ["-q"], 1)
             @test next_index == 2
-            @test pairs == ("v" => :decr__, "q" => :incr__, "quiet" => :incr__)
+            @test sorted_keys(result._dict) == ["v"]
+            @test result.v == -1
         end
-        let ctx = Dict{AbstractOption,Int}()
-            next_index, pairs = CliOptions.consume!(ctx, option, ["--quiet"], 1)
+        let result = CliOptions.ParsedArguments()
+            next_index = CliOptions.consume!(result, option, ["--quiet"], 1)
             @test next_index == 2
-            @test pairs == ("v" => :decr__, "q" => :incr__, "quiet" => :incr__)
+            @test sorted_keys(result._dict) == ["v"]
+            @test result.v == -1
         end
     end
 end
