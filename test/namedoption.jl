@@ -6,7 +6,6 @@ using CliOptions
         @test_throws ArgumentError NamedOption()
         @test_throws ArgumentError NamedOption("")
         @test_throws ArgumentError NamedOption("a")
-        #@test_throws ArgumentError NamedOption("a b")  #TODO
         @test NamedOption("-a").names == ["-a"]
         @test NamedOption("-a", "-b").names == ["-a", "-b"]
     end

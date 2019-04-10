@@ -164,15 +164,13 @@ struct FlagOption <: AbstractOption
             throw(ArgumentError("At least one name for a FlagOption must be specified"))
         end
         for name in unique(vcat(collect(names), negators))
-            if match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
-                if name == ""
-                    throw(ArgumentError("Name of a FlagOption must not be empty"))
-                elseif match(r"^[^-]", name) !== nothing
-                    throw(ArgumentError("Name of a FlagOption must start with a hyphen: " *
-                                        name))
-                else
-                    throw(ArgumentError("Invalid name for FlagOption: " * name))
-                end
+            if name == ""
+                throw(ArgumentError("Name of a FlagOption must not be empty"))
+            elseif name[1] != '-'
+                throw(ArgumentError("Name of a FlagOption must start with a hyphen:" *
+                                    " \"$name\""))
+            elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
+                throw(ArgumentError("Invalid name for FlagOption: \"$name\""))
             end
         end
         new([n for n ∈ names], [n for n ∈ negators])
@@ -245,15 +243,13 @@ struct CounterOption <: AbstractOption
             throw(ArgumentError("At least one name for a CounterOption must be specified"))
         end
         for name in unique(vcat(collect(names), decrementers))
-            if match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
-                if name == ""
-                    throw(ArgumentError("Name of a CounterOption must not be empty"))
-                elseif match(r"^[^-]", name) !== nothing
-                    throw(ArgumentError("Name of a CounterOption must start with a hyphen: "
-                                        * name))
-                else
-                    throw(ArgumentError("Invalid name for CounterOption: " * name))
-                end
+            if name == ""
+                throw(ArgumentError("Name of a CounterOption must not be empty"))
+            elseif name[1] != '-'
+                throw(ArgumentError("Name of a CounterOption must start with a hyphen:" *
+                                    " \"$name\""))
+            elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
+                throw(ArgumentError("Invalid name for CounterOption: \"$name\""))
             end
         end
         new([n for n ∈ names], [n for n ∈ decrementers])
@@ -323,12 +319,10 @@ struct Positional <: AbstractOption
                         default::Any = nothing)
         if singular_name == ""
             throw(ArgumentError("Name of a Positional must not be empty"))
-        end
-        if startswith(singular_name, '-')
+        elseif startswith(singular_name, '-')
             throw(ArgumentError("Name of a Positional must not start with a hyphen: " *
                                 singular_name))
-        end
-        if startswith(plural_name, '-')
+        elseif startswith(plural_name, '-')
             throw(ArgumentError("Name of a Positional must not start with a hyphen: " *
                                 plural_name))
         end

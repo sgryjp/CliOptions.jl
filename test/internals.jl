@@ -16,6 +16,7 @@ using CliOptions: encode, is_option
         @test encode("/f") == "f"
         @test encode("--f") == "f"
         @test encode("--foo-bar") == "foo_bar"
+        @test encode("-foo bar") == "foo_bar"
     end
 
 end
