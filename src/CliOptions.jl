@@ -229,7 +229,8 @@ end
 
 
 """
-    CounterOption
+    CounterOption([type::Type], names::String...;
+                  decrementers::Vector{String} = [])
 
 A type represents a flag-like command line option. Total number of times a `CounterOption`
 was specified becomes the option's value.
@@ -237,8 +238,10 @@ was specified becomes the option's value.
 struct CounterOption <: AbstractOption
     names::Vector{String}
     decrementers::Vector{String}
+    type::Type
 
-    function CounterOption(names::String...; decrementers::Vector{String} = String[])
+    function CounterOption(type::Type, names::String...;
+                           decrementers::Vector{String} = String[])
         if length(names) == 0
             throw(ArgumentError("At least one name for a CounterOption must be specified"))
         end
@@ -252,36 +255,45 @@ struct CounterOption <: AbstractOption
                 throw(ArgumentError("Invalid name for CounterOption: \"$name\""))
             end
         end
-        new([n for n ∈ names], [n for n ∈ decrementers])
+        if !(type <: Signed)
+            throw(ArgumentError("Type of a CounterOption must be a subtype of Signed:" *
+                                " \"$type\""))
+        end
+        new([n for n ∈ names], [n for n ∈ decrementers], type)
     end
+end
+function CounterOption(names::String...;
+                       decrementers::Vector{String} = String[])
+    CounterOption(Int, names...; decrementers = decrementers)
 end
 
 function set_default!(result::ParsedArguments, o::CounterOption)
     result._counter[o] = 0
-    foreach(k -> result._dict[encode(k)] = 0, o.names)
+    foreach(k -> result._dict[encode(k)] = o.type(0), o.names)
 end
 
 function consume!(result::ParsedArguments, o::CounterOption, args, i)
     @assert 1 ≤ i ≤ length(args)
 
-    value = 0
+    value = get(result._dict, encode(o.names[1]), o.type(0))
     if startswith(args[i], "--")
         if args[i] ∈ o.names
-            value = +1
+            value += 1
         elseif args[i] ∈ o.decrementers
-            value = -1
+            value -= 1
         end
     elseif startswith(args[i], "-")
         @assert length(args[i]) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
         if args[i] ∈ o.names
-            value = +1
+            value += 1
         elseif args[i] ∈ o.decrementers
-            value = -1
+            value -= 1
         end
     end
     if value == 0
         return -1
     end
+    value = o.type(value)
 
     # Update counter
     count::Int = get(result._counter, o, -1)

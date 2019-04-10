@@ -13,6 +13,7 @@ using CliOptions
         @test_throws ArgumentError CounterOption("-a"; decrementers = ["-"])
         @test_throws ArgumentError CounterOption("-a"; decrementers = ["--"])
         #@test_throws ArgumentError CounterOption("-a"; decrementers = ["-a"])  #TODO
+        @test_throws ArgumentError CounterOption(UInt8, "-a")
         option = CounterOption("-a")
         @test option.names == ["-a"]
         @test option.decrementers == String[]
@@ -84,6 +85,40 @@ using CliOptions
             @test next_index == 2
             @test sorted_keys(result._dict) == ["v"]
             @test result.v == -1
+        end
+    end
+
+    @testset "consume(::CounterOption); type" begin
+        let result = CliOptions.ParsedArguments()
+            option = CounterOption("-v")
+            CliOptions.consume!(result, option, ["-v"], 1)
+            @test typeof(result.v) == Int
+        end
+        let result = CliOptions.ParsedArguments()
+            option = CounterOption(Int8, "-v")
+            CliOptions.consume!(result, option, ["-v"], 1)
+            @test typeof(result.v) == Int8
+        end
+        let result = CliOptions.ParsedArguments()
+            option = CounterOption(Int128, "-v")
+            CliOptions.consume!(result, option, ["-v"], 1)
+            @test typeof(result.v) == Int128
+        end
+        let result = CliOptions.ParsedArguments()
+            option = CounterOption(Int8, "-v")
+            for _ in 1:127
+                CliOptions.consume!(result, option, ["-v"], 1)
+            end
+            @test result.v == 127
+            @test_throws InexactError CliOptions.consume!(result, option, ["-v"], 1)
+        end
+        let result = CliOptions.ParsedArguments()
+            option = CounterOption(Int8, "-v"; decrementers = ["-q"])
+            for _ in 1:128
+                CliOptions.consume!(result, option, ["-q"], 1)
+            end
+            @test result.v == -128
+            @test_throws InexactError CliOptions.consume!(result, option, ["-q"], 1)
         end
     end
 end

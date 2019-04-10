@@ -56,12 +56,14 @@ using CliOptions
         @test sorted_keys(args._dict) == ["a"]
         @test args.a == -1
 
-        spec = CliOptionSpec(CounterOption("-a"; decrementers = ["-b"]),
-                             CounterOption("-c"))
+        spec = CliOptionSpec(CounterOption(Int8, "-a"; decrementers = ["-b"]),
+                             CounterOption(Int32, "-c"))
         args = parse_args(spec, ["-c"])
         @test sorted_keys(args._dict) == ["a", "c"]
         @test args.a == 0
+        @test typeof(args.a) == Int8
         @test args.c == 1
+        @test typeof(args.c) == Int32
     end
 
     @testset "Positional" begin
