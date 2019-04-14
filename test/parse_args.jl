@@ -2,6 +2,28 @@ using Test
 using CliOptions
 
 @testset "parse_args()" begin
+    @testset "reparsing" begin
+        let spec = CliOptionSpec(NamedOption("-n", "--num-workers"), FlagOption("-i"))
+            args = parse_args(spec, ["-i", "-n", "3"])
+            @test args.i == true
+            @test args.n == "3"
+
+            args = parse_args(spec, ["-in", "3"])
+            @test args.i == true
+            @test args.n == "3"
+
+            @test_throws CliOptionError parse_args(spec, ["-ni", "3"])
+
+            args = parse_args(spec, ["--num-workers", "3"])
+            @test args.i == false
+            @test args.n == "3"
+
+            args = parse_args(spec, ["--num-workers=3"])
+            @test args.i == false
+            @test args.n == "3"
+        end
+    end
+
     @testset "Mixed options" begin
         spec = CliOptionSpec(
             NamedOption("-n", "--num-workers"),

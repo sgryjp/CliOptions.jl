@@ -503,15 +503,34 @@ Parse command line options according to `spec`.
 function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParsedArguments()
 
+    # Reparsing argument list
+    arguments = String[]
+    for i = 1:length(args)
+        if !startswith(args[i], '-')
+            push!(arguments, args[i])  # -a
+        elseif startswith(args[i], "--")
+            kv = split(args[i], '=')
+            if length(kv) == 1
+                push!(arguments, args[i])  # --foo-bar
+            elseif length(kv) == 2
+                push!(arguments, kv[1], kv[2])  # --foo-bar=buzz
+            else
+                throw(CliOptionError("Unrecognizable option string: \"$(args[i])\""))
+            end
+        elseif startswith(args[i], '-')
+            append!(arguments, ["-$c" for c ∈ args[i][2:end]])  # -abc ==> -a -b -c
+        end
+    end
+
     # Setup default values
     foreach(o -> set_default!(result, o), spec.root)
 
     # Parse arguments
     i = 1
-    while i ≤ length(args)
-        next_index = consume!(result, spec.root, args, i)
+    while i ≤ length(arguments)
+        next_index = consume!(result, spec.root, arguments, i)
         if next_index < 0
-            throw(CliOptionError("Unrecognized argument: \"$(args[i])\""))
+            throw(CliOptionError("Unrecognized argument: \"$(arguments[i])\""))
         end
 
         i = next_index

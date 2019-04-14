@@ -20,7 +20,6 @@ using CliOptions
             (names, ["-d", "3"],      1,              3, Dict("d" => "3", "depth" => "3")),
             (names, ["a", "-d"],      2, CliOptionError, nothing),
             (names, ["a", "-d", "3"], 2,              4, Dict("d" => "3", "depth" => "3")),
-            #(names, ["a", "-d=3"],    2,              3, Dict("d" => "3", "depth" => "3")),  #TODO
         ]
         for (names, arg, index, xret, xresult) in test_cases
             option = NamedOption(names...)
