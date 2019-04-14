@@ -230,7 +230,8 @@ end
 
 """
     CounterOption([type::Type], names::String...;
-                  decrementers::Vector{String} = [])
+                  decrementers::Vector{String} = [],
+                  default::Signed = 0)
 
 A type represents a flag-like command line option. Total number of times a `CounterOption`
 was specified becomes the option's value.
@@ -238,10 +239,12 @@ was specified becomes the option's value.
 struct CounterOption <: AbstractOption
     names::Vector{String}
     decrementers::Vector{String}
+    default::Signed
     type::Type
 
     function CounterOption(type::Type, names::String...;
-                           decrementers::Vector{String} = String[])
+                           decrementers::Vector{String} = String[],
+                           default::Signed = 0)
         if length(names) == 0
             throw(ArgumentError("At least one name for a CounterOption must be specified"))
         end
@@ -259,41 +262,42 @@ struct CounterOption <: AbstractOption
             throw(ArgumentError("Type of a CounterOption must be a subtype of Signed:" *
                                 " \"$type\""))
         end
-        new([n for n ∈ names], [n for n ∈ decrementers], type)
+        new([n for n ∈ names], [n for n ∈ decrementers], type(default), type)
     end
 end
 function CounterOption(names::String...;
-                       decrementers::Vector{String} = String[])
-    CounterOption(Int, names...; decrementers = decrementers)
+                       decrementers::Vector{String} = String[],
+                       default::Signed = 0)
+    CounterOption(Int, names...; decrementers = decrementers, default = default)
 end
 
 function set_default!(result::ParsedArguments, o::CounterOption)
     result._counter[o] = 0
-    foreach(k -> result._dict[encode(k)] = o.type(0), o.names)
+    foreach(k -> result._dict[encode(k)] = o.type(o.default), o.names)
 end
 
 function consume!(result::ParsedArguments, o::CounterOption, args, i)
     @assert 1 ≤ i ≤ length(args)
 
-    value = get(result._dict, encode(o.names[1]), o.type(0))
+    diff = 0
     if startswith(args[i], "--")
         if args[i] ∈ o.names
-            value += 1
+            diff = +1
         elseif args[i] ∈ o.decrementers
-            value -= 1
+            diff = -1
         end
     elseif startswith(args[i], "-")
         @assert length(args[i]) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
         if args[i] ∈ o.names
-            value += 1
+            diff = +1
         elseif args[i] ∈ o.decrementers
-            value -= 1
+            diff = -1
         end
     end
-    if value == 0
+    if diff == 0
         return -1
     end
-    value = o.type(value)
+    value = o.type(get(result._dict, encode(o.names[1]), 0) + diff)
 
     # Update counter
     count::Int = get(result._counter, o, -1)
@@ -507,7 +511,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     while i ≤ length(args)
         next_index = consume!(result, spec.root, args, i)
         if next_index < 0
-            throw(CliOptionError("Unrecognized argument: " * args[i]))
+            throw(CliOptionError("Unrecognized argument: \"$(args[i])\""))
         end
 
         i = next_index

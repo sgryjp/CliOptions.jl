@@ -3,23 +3,38 @@ using CliOptions
 
 @testset "CounterOption()" begin
     @testset "ctor" begin
+        @testset "names" begin
         @test_throws ArgumentError CounterOption()
-        @test_throws ArgumentError CounterOption("")
-        @test_throws ArgumentError CounterOption("a")
-        @test_throws ArgumentError CounterOption("-")
-        @test_throws ArgumentError CounterOption("--")
-        @test_throws ArgumentError CounterOption("-a"; decrementers = [""])
-        @test_throws ArgumentError CounterOption("-a"; decrementers = ["a"])
-        @test_throws ArgumentError CounterOption("-a"; decrementers = ["-"])
-        @test_throws ArgumentError CounterOption("-a"; decrementers = ["--"])
-        #@test_throws ArgumentError CounterOption("-a"; decrementers = ["-a"])  #TODO
-        @test_throws ArgumentError CounterOption(UInt8, "-a")
-        option = CounterOption("-a")
-        @test option.names == ["-a"]
-        @test option.decrementers == String[]
-        option = CounterOption("-a", "-b", decrementers = ["-c", "-d"])
-        @test option.names == ["-a", "-b"]
-        @test option.decrementers == ["-c", "-d"]
+            @test_throws ArgumentError CounterOption("")
+            @test_throws ArgumentError CounterOption("a")
+            @test_throws ArgumentError CounterOption("-")
+            @test_throws ArgumentError CounterOption("--")
+            @test_throws ArgumentError CounterOption("-a"; decrementers = [""])
+            @test_throws ArgumentError CounterOption("-a"; decrementers = ["a"])
+            @test_throws ArgumentError CounterOption("-a"; decrementers = ["-"])
+            @test_throws ArgumentError CounterOption("-a"; decrementers = ["--"])
+            #@test_throws ArgumentError CounterOption("-a"; decrementers = ["-a"])  #TODO
+            @test_throws ArgumentError CounterOption(UInt8, "-a")
+
+            option = CounterOption("-a")
+            @test option.names == ["-a"]
+            @test option.decrementers == String[]
+        end
+
+        @testset "decrementers" begin
+            option = CounterOption("-a", "-b", decrementers = ["-c", "-d"])
+            @test option.names == ["-a", "-b"]
+            @test option.decrementers == ["-c", "-d"]
+        end
+
+        @testset "default" begin
+            let result = CliOptions.ParsedArguments()
+                @test_throws InexactError CounterOption(Int8, "-v", default = -129)
+                CounterOption(Int8, "-v", default = -128)
+                CounterOption(Int8, "-v", default = 127)
+                @test_throws InexactError CounterOption(Int8, "-v", default = 128)
+            end
+        end
     end
 
     @testset "consume(::CounterOption)" begin

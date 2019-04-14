@@ -47,7 +47,7 @@ using CliOptions
     end
 
     @testset "CounterOption" begin  #TODO: 背反
-        spec = CliOptionSpec(CounterOption("-a"; decrementers = ["-b"]), )
+        spec = CliOptionSpec(CounterOption("-a"; decrementers = ["-b"]))
         args = parse_args(spec, ["-a"])
         @test sorted_keys(args._dict) == ["a"]
         @test args.a == 1
@@ -56,14 +56,36 @@ using CliOptions
         @test sorted_keys(args._dict) == ["a"]
         @test args.a == -1
 
-        spec = CliOptionSpec(CounterOption(Int8, "-a"; decrementers = ["-b"]),
-                             CounterOption(Int32, "-c"))
-        args = parse_args(spec, ["-c"])
-        @test sorted_keys(args._dict) == ["a", "c"]
-        @test args.a == 0
-        @test typeof(args.a) == Int8
-        @test args.c == 1
-        @test typeof(args.c) == Int32
+        @testset "implicit default" begin
+            spec = CliOptionSpec(CounterOption(Int8, "-a"; decrementers = ["-b"]),
+                                 CounterOption(Int32, "-c"))
+            args = parse_args(spec, ["-c"])
+            @test sorted_keys(args._dict) == ["a", "c"]
+            @test args.a == 0
+            @test typeof(args.a) == Int8
+            @test args.c == 1
+            @test typeof(args.c) == Int32
+        end
+
+        @testset "explicit default" begin
+            spec = CliOptionSpec(CounterOption(Int8, "-a";
+                                               decrementers = ["-b"],
+                                               default = -1),
+                                 CounterOption(Int32, "-c"))
+            args = parse_args(spec, ["-a"])
+            @test args.a == 0
+            args = parse_args(spec, ["-c"])
+            @test args.a == -1
+            args = parse_args(spec, ["-b"])
+            @test args.a == -2
+
+            spec = CliOptionSpec(CounterOption(Int8, "-a";
+                                               decrementers = ["-b"], default = 127))
+            @test_throws InexactError parse_args(spec, ["-a"])
+            spec = CliOptionSpec(CounterOption(Int8, "-a";
+                                               decrementers = ["-b"], default = -128))
+            @test_throws InexactError parse_args(spec, ["-b"])
+        end
     end
 
     @testset "Positional" begin
