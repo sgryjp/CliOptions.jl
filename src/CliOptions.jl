@@ -77,18 +77,23 @@ end
 
 
 """
-    NamedOption(names::String...)
+    NamedOption([type::Type], names::String...)
 
-`NamedOption` represents the most basic command option type. Typycally, a named option
-appears in a format like  `-a b`, `--option-name value` or `--option-name=value`.
+A command line option type whose value is a following argument. A named option appears in a
+format like `-a buzz`, `--foo-bar buzz` or `--foo-bar=buzz`.
 """
 struct NamedOption <: AbstractOption
     names::Vector{String}
+    type::Type
     help::String
 
-    function NamedOption(names::String...; help="")
+    function NamedOption(type::Type, names::String...; help = "")
+        if !applicable(type, "") && !applicable(parse, type, "")
+            throw(ArgumentError("Type of a NamedOption must be constructible or" *
+                                " `parse`able from a String: $(type)"))
+        end
         if length(names) == 0
-            throw(ArgumentError("At least one name for a NamedOption must be specified"))
+            throw(ArgumentError("NamedOption needs a name"))
         end
         for name ∈ names
             if "" == name
@@ -98,9 +103,11 @@ struct NamedOption <: AbstractOption
                                     name))
             end
         end
-        new([n for n ∈ names], help)
+        new([n for n ∈ names], type, help)
     end
 end
+
+NamedOption(names::String...; help = "") = NamedOption(String, names...; help = help)
 
 function set_default!(result::ParsedArguments, o::NamedOption)
     result._counter[o] = 0
@@ -112,7 +119,7 @@ function consume!(result::ParsedArguments, o::NamedOption, args, i)
         return -1
     end
     if length(args) < i + 1
-        throw(CliOptionError("A value is needed for option `" * args[i] * "`"))
+        throw(CliOptionError("A value is needed for option \"$(args[i])\""))
     end
 
     # Get how many times this option was evaluated
@@ -127,7 +134,20 @@ function consume!(result::ParsedArguments, o::NamedOption, args, i)
     end
     result._counter[o] += 1
 
-    foreach(k -> result._dict[encode(k)] = args[i + 1], o.names)
+    function cvt(x)
+        try
+            if applicable(o.type, "")
+                return o.type(x)
+            elseif applicable(parse, o.type, "")
+                return parse(o.type, x)
+            else
+                throw(AssertionError("THIS LINE MUST NOT BE EXECUTED"))
+            end
+        catch exc
+            throw(CliOptionError(exc.msg))
+        end
+    end
+    foreach(k -> result._dict[encode(k)] = cvt(args[i + 1]), o.names)
     i + 2
 end
 

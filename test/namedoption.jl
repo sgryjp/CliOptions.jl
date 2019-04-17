@@ -1,3 +1,4 @@
+using Dates
 using Test
 using CliOptions
 
@@ -8,6 +9,11 @@ using CliOptions
         @test_throws ArgumentError NamedOption("a")
         @test NamedOption("-a").names == ["-a"]
         @test NamedOption("-a", "-b").names == ["-a", "-b"]
+
+        @test_throws ArgumentError NamedOption(Exception, "-a")
+        @test NamedOption(String, "-a").type == String
+        @test NamedOption(DateTime, "-a").type == DateTime  # constructible
+        @test NamedOption(UInt32, "-a").type == UInt32      # `parse`able
     end
 
     @testset "consume(::NamedOption)" begin
@@ -35,6 +41,35 @@ using CliOptions
                     end
                 end
             end
+        end
+    end
+
+    @testset "consume!(::NamedOption); type, constructible" begin
+        let option = NamedOption(Date, "-d", "--date")
+            result = CliOptions.ParsedArguments()
+            next_index = CliOptions.consume!(result, option, ["-d", "2006-01-02"], 1)
+            @test next_index == 3
+            @test result.date == Date(2006, 1, 2)
+        end
+    end
+
+    @testset "consume!(::NamedOption); type, parsable" begin
+        let option = NamedOption(UInt8, "-n", "--number")
+            result = CliOptions.ParsedArguments()
+            @test_throws CliOptionError CliOptions.consume!(result, option, ["-n", "-1"], 1)
+
+            result = CliOptions.ParsedArguments()
+            next_index = CliOptions.consume!(result, option, ["-n", "0"], 1)
+            @test next_index == 3
+            @test result.number == 0
+
+            result = CliOptions.ParsedArguments()
+            next_index = CliOptions.consume!(result, option, ["-n", "255"], 1)
+            @test next_index == 3
+            @test result.number == 255
+
+            result = CliOptions.ParsedArguments()
+            @test_throws CliOptionError CliOptions.consume!(result, option, ["-n", "256"], 1)
         end
     end
 end
