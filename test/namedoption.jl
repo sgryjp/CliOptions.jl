@@ -29,7 +29,7 @@ using CliOptions
         ]
         for (names, arg, index, xret, xresult) in test_cases
             option = NamedOption(names...)
-            result = CliOptions.ParsedArguments()
+            result = CliOptions.ParseResult()
             if xret isa Type && xret <: Exception
                 @test_throws xret CliOptions.consume!(result, option, arg, index)
             else
@@ -46,7 +46,7 @@ using CliOptions
 
     @testset "consume!(::NamedOption); type, constructible" begin
         let option = NamedOption(Date, "-d", "--date")
-            result = CliOptions.ParsedArguments()
+            result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-d", "2006-01-02"], 1)
             @test next_index == 3
             @test result.date == Date(2006, 1, 2)
@@ -55,20 +55,20 @@ using CliOptions
 
     @testset "consume!(::NamedOption); type, parsable" begin
         let option = NamedOption(UInt8, "-n", "--number")
-            result = CliOptions.ParsedArguments()
+            result = CliOptions.ParseResult()
             @test_throws CliOptionError CliOptions.consume!(result, option, ["-n", "-1"], 1)
 
-            result = CliOptions.ParsedArguments()
+            result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-n", "0"], 1)
             @test next_index == 3
             @test result.number == 0
 
-            result = CliOptions.ParsedArguments()
+            result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-n", "255"], 1)
             @test next_index == 3
             @test result.number == 255
 
-            result = CliOptions.ParsedArguments()
+            result = CliOptions.ParseResult()
             @test_throws CliOptionError CliOptions.consume!(result, option, ["-n", "256"], 1)
         end
     end

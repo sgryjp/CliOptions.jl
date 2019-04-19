@@ -41,31 +41,31 @@ abstract type AbstractOptionGroup <: AbstractOption end
 
 
 """
-    ParsedArguments
+    ParseResult
 
 Dict-like object holding parsing result of command line options.
 """
-struct ParsedArguments
+struct ParseResult
     _dict
     _counter
 
-    ParsedArguments() = new(Dict{String,Any}(),Dict{AbstractOption,Int}())
+    ParseResult() = new(Dict{String,Any}(),Dict{AbstractOption,Int}())
 end
 
-function Base.getindex(args::ParsedArguments, key)
+function Base.getindex(args::ParseResult, key)
     k = key isa Symbol ? String(key) : key
     getindex(args._dict, k)
 end
 
-function Base.propertynames(args::ParsedArguments, private = false)
+function Base.propertynames(args::ParseResult, private = false)
     vcat([:_dict], [Symbol(k) for (k, v) ∈ getfield(args, :_dict)])
 end
 
-function Base.getproperty(args::ParsedArguments, name::String)
-    Base.getproperty(args::ParsedArguments, Symbol(name))
+function Base.getproperty(args::ParseResult, name::String)
+    Base.getproperty(args::ParseResult, Symbol(name))
 end
 
-function Base.getproperty(args::ParsedArguments, name::Symbol)
+function Base.getproperty(args::ParseResult, name::Symbol)
     if name == :_dict
         return getfield(args, :_dict)
     elseif name == :_counter
@@ -109,11 +109,11 @@ end
 
 NamedOption(names::String...; help = "") = NamedOption(String, names...; help = help)
 
-function set_default!(result::ParsedArguments, o::NamedOption)
+function set_default!(result::ParseResult, o::NamedOption)
     result._counter[o] = 0
 end
 
-function consume!(result::ParsedArguments, o::NamedOption, args, i)
+function consume!(result::ParseResult, o::NamedOption, args, i)
     @assert 1 ≤ i ≤ length(args)
     if args[i] ∉ o.names
         return -1
@@ -197,13 +197,13 @@ struct FlagOption <: AbstractOption
     end
 end
 
-function set_default!(result::ParsedArguments, o::FlagOption)
+function set_default!(result::ParseResult, o::FlagOption)
     result._counter[o] = 0
     foreach(k -> result._dict[encode(k)] = false, o.names)
     foreach(k -> result._dict[encode(k)] = true, o.negators)
 end
 
-function consume!(result::ParsedArguments, o::FlagOption, args, i)
+function consume!(result::ParseResult, o::FlagOption, args, i)
     @assert 1 ≤ i ≤ length(args)
 
     if startswith(args[i], "--")
@@ -291,12 +291,12 @@ function CounterOption(names::String...;
     CounterOption(Int, names...; decrementers = decrementers, default = default)
 end
 
-function set_default!(result::ParsedArguments, o::CounterOption)
+function set_default!(result::ParseResult, o::CounterOption)
     result._counter[o] = 0
     foreach(k -> result._dict[encode(k)] = o.type(o.default), o.names)
 end
 
-function consume!(result::ParsedArguments, o::CounterOption, args, i)
+function consume!(result::ParseResult, o::CounterOption, args, i)
     @assert 1 ≤ i ≤ length(args)
 
     diff = 0
@@ -371,12 +371,12 @@ struct Positional <: AbstractOption
     end
 end
 
-function set_default!(result::ParsedArguments, o::Positional)
+function set_default!(result::ParseResult, o::Positional)
     result._counter[o] = 0
     foreach(k -> result._dict[encode(k)] = o.default, o.names)
 end
 
-function consume!(result::ParsedArguments, o::Positional, args, i)
+function consume!(result::ParseResult, o::Positional, args, i)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
 
@@ -428,11 +428,11 @@ struct OptionGroup <: AbstractOptionGroup
     OptionGroup(name::String, options::AbstractOption...) = new(name, options)
 end
 
-function set_default!(result::ParsedArguments, o::OptionGroup)
+function set_default!(result::ParseResult, o::OptionGroup)
     foreach(o -> set_default!(result._dict, o), o.options)
 end
 
-function consume!(result::ParsedArguments, o::OptionGroup, args, i)
+function consume!(result::ParseResult, o::OptionGroup, args, i)
     for option in o.options
         next_index = consume!(result, option, args, i)
         if 0 < next_index
@@ -521,7 +521,7 @@ Parse command line options according to `spec`.
 `Base.ARGS` which is an array of command line arguments passed to the Julia script.
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
-    result = ParsedArguments()
+    result = ParseResult()
 
     # Reparsing argument list
     arguments = String[]

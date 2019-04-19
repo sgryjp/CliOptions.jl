@@ -31,7 +31,7 @@ using CliOptions
             Positional("filename"),
         )
         args = parse_args(spec, ["-n", "3", "test.db"])
-        @test args isa CliOptions.ParsedArguments
+        @test args isa CliOptions.ParseResult
         @test args._dict["n"] == "3"
         @test args._dict["num_workers"] == "3"
         @test args._dict["ignore_case"] == false

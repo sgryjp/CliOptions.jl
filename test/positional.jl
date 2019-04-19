@@ -31,28 +31,28 @@ using CliOptions: consume!
 
     @testset "consume(::Positional)" begin
         @testset "empty args" begin
-            let result = CliOptions.ParsedArguments()
+            let result = CliOptions.ParseResult()
                 option = Positional("file")
                 @test_throws AssertionError consume!(result, option, Vector{String}(), 1)
             end
         end
 
         @testset "single" begin
-            let result = CliOptions.ParsedArguments()
+            let result = CliOptions.ParseResult()
                 option = Positional("file")
                 next_index = consume!(result, option, [""], 1)
                 @test next_index == 2
                 @test sorted_keys(result._dict) == ["file"]
                 @test result.file == ""
             end
-            let result = CliOptions.ParsedArguments()
+            let result = CliOptions.ParseResult()
                 option = Positional("file")
                 next_index = consume!(result, option, ["-d"], 1)
                 @test next_index == 2
                 @test sorted_keys(result._dict) == ["file"]
                 @test result.file == "-d"
             end
-            let result = CliOptions.ParsedArguments()
+            let result = CliOptions.ParseResult()
                 option = Positional("file", "files")
                 next_index = consume!(result, option, ["-d"], 1)
                 @test next_index == 2
@@ -63,14 +63,14 @@ using CliOptions: consume!
         end
 
         @testset "multiple" begin
-            let result = CliOptions.ParsedArguments()
+            let result = CliOptions.ParseResult()
                 option = Positional("file", multiple = true)
                 next_index = consume!(result, option, [""], 1)
                 @test next_index == 2
                 @test sorted_keys(result._dict) == ["file"]
                 @test result.file == [""]
             end
-            let result = CliOptions.ParsedArguments()
+            let result = CliOptions.ParseResult()
                 option = Positional("file", "files", multiple = true)
                 next_index = consume!(result, option, ["a"], 1)
                 @test next_index == 2
@@ -78,7 +78,7 @@ using CliOptions: consume!
                 @test result.file == ["a"]
                 @test result.files == ["a"]
             end
-            let result = CliOptions.ParsedArguments()
+            let result = CliOptions.ParseResult()
                 option = Positional("file", multiple = true)
                 next_index = consume!(result, option, ["a", "b"], 1)
                 @test next_index == 3

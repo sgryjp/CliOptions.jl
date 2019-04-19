@@ -28,7 +28,7 @@ using CliOptions
         end
 
         @testset "default" begin
-            let result = CliOptions.ParsedArguments()
+            let result = CliOptions.ParseResult()
                 @test_throws InexactError CounterOption(Int8, "-v", default = -129)
                 CounterOption(Int8, "-v", default = -128)
                 CounterOption(Int8, "-v", default = 127)
@@ -40,26 +40,26 @@ using CliOptions
     @testset "consume(::CounterOption)" begin
         option = CounterOption("-v", "--verbose")
 
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             @test_throws AssertionError CliOptions.consume!(result, option, String[], 1)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             # Splitting optchars are done by parse_args()
             @test_throws AssertionError CliOptions.consume!(result, option, ["-wv"], 1)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["v"], 1)
             @test next_index == -1
             @test sorted_keys(result._dict) == []
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-v"], 1)
             @test next_index == 2
             @test sorted_keys(result._dict) == ["v", "verbose"]
             @test result.v == 1
             @test result.verbose == 1
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["--verbose"], 1)
             @test next_index == 2
             @test sorted_keys(result._dict) == ["v", "verbose"]
@@ -71,31 +71,31 @@ using CliOptions
     @testset "consume(::CounterOption); decrementers" begin
         option = CounterOption("-v", decrementers = ["-q", "--quiet"])
 
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             @test_throws AssertionError CliOptions.consume!(result, option, String[], 1)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             # Splitting optchars are done by parse_args()
             @test_throws AssertionError CliOptions.consume!(result, option, ["-wv"], 1)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["v"], 1)
             @test next_index == -1
             @test sorted_keys(result._dict) == []
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-v"], 1)
             @test next_index == 2
             @test sorted_keys(result._dict) == ["v"]
             @test result.v == 1
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-q"], 1)
             @test next_index == 2
             @test sorted_keys(result._dict) == ["v"]
             @test result.v == -1
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["--quiet"], 1)
             @test next_index == 2
             @test sorted_keys(result._dict) == ["v"]
@@ -104,22 +104,22 @@ using CliOptions
     end
 
     @testset "consume(::CounterOption); type" begin
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             option = CounterOption("-v")
             CliOptions.consume!(result, option, ["-v"], 1)
             @test typeof(result.v) == Int
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             option = CounterOption(Int8, "-v")
             CliOptions.consume!(result, option, ["-v"], 1)
             @test typeof(result.v) == Int8
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             option = CounterOption(Int128, "-v")
             CliOptions.consume!(result, option, ["-v"], 1)
             @test typeof(result.v) == Int128
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             option = CounterOption(Int8, "-v")
             for _ in 1:127
                 CliOptions.consume!(result, option, ["-v"], 1)
@@ -127,7 +127,7 @@ using CliOptions
             @test result.v == 127
             @test_throws InexactError CliOptions.consume!(result, option, ["-v"], 1)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             option = CounterOption(Int8, "-v"; decrementers = ["-q"])
             for _ in 1:128
                 CliOptions.consume!(result, option, ["-q"], 1)

@@ -24,26 +24,26 @@ using CliOptions
     @testset "consume(::FlagOption)" begin
         option = FlagOption("-i", "--ignore-case")
 
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             @test_throws AssertionError CliOptions.consume!(result, option, String[], 1)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             # Splitting optchars are done by parse_args()
             @test_throws AssertionError CliOptions.consume!(result, option, ["-ab"], 1)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["foo"], 1)
             @test next_index == -1
             @test isempty(result._dict)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-i"], 1)
             @test next_index == 2
             @test sorted_keys(result._dict) == ["i", "ignore_case"]
             @test result.i == true
             @test result.ignore_case == true
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["--ignore-case"], 1)
             @test next_index == 2
             @test sorted_keys(result._dict) == ["i", "ignore_case"]
@@ -55,19 +55,19 @@ using CliOptions
     @testset "consume(::FlagOption); negators" begin
         option = FlagOption("-i", negators = ["-c", "--case-sensitive"])
 
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             @test_throws AssertionError CliOptions.consume!(result, option, String[], 1)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             # Splitting optchars are done by parse_args()
             @test_throws AssertionError CliOptions.consume!(result, option, ["-ab"], 1)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["foo"], 1)
             @test next_index == -1
             @test isempty(result._dict)
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-i"], 1)
             @test next_index == 2
             @test sorted_keys(result._dict) == ["c", "case_sensitive", "i"]
@@ -75,7 +75,7 @@ using CliOptions
             @test result.c == false
             @test result.case_sensitive == false
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-c"], 1)
             @test next_index == 2
             @test sorted_keys(result._dict) == ["c", "case_sensitive", "i"]
@@ -83,7 +83,7 @@ using CliOptions
             @test result.c == true
             @test result.case_sensitive == true
         end
-        let result = CliOptions.ParsedArguments()
+        let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["--case-sensitive"], 1)
             @test next_index == 2
             @test sorted_keys(result._dict) == ["c", "case_sensitive", "i"]
