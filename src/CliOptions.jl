@@ -163,7 +163,7 @@ end
 
 
 """
-    FlagOption(names::String...;
+    FlagOption(short_name::String, long_name::String = "";
                negators::Union{String,Vector{String}} = "",
                help = "",
                negator_help = "")
@@ -177,12 +177,10 @@ struct FlagOption <: AbstractOption
     help::String
     negator_help::String
 
-    function FlagOption(names::String...;
+    function FlagOption(short_name::String, long_name::String = "";
                         negators::Union{String,Vector{String}} = String[],
                         help = "", negator_help = "")
-        if length(names) == 0
-            throw(ArgumentError("At least one name for a FlagOption must be specified"))
-        end
+        names = long_name == "" ? [short_name] : [short_name, long_name]
         if negators isa String
             negators = [negators]
         end

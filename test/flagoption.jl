@@ -3,7 +3,8 @@ using CliOptions
 
 @testset "FlagOption()" begin
     @testset "ctor" begin
-        @test_throws ArgumentError FlagOption()
+        @test_throws MethodError FlagOption()
+        @test_throws MethodError FlagOption("-f", "--foo", "--bar")
         @test_throws ArgumentError FlagOption("")
         @test_throws ArgumentError FlagOption("a")
         @test_throws ArgumentError FlagOption("-")
