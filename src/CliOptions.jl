@@ -529,10 +529,42 @@ Base.show(spec::CliOptionSpec) = show(stdout, spec)
 """
     parse_args(spec::CliOptionSpec, args = ARGS)
 
-Parse command line options in the `args` according to the `spec`.
+Parse `args` according to the `spec`.
 
-`args` is the command line arguments to be parsed. If omitted, this function parses
-`Base.ARGS` — which is an array of command line arguments passed to the Julia script.
+`spec` is an instance of [`CliOptionSpec`](@ref) which defines how to parse command line
+arguments. It is constructed with one or more concrete subtypes of
+[`AbstractOption`](@ref)s. See document of `AbstractOption` for full list of its subtypes.
+
+`args` is the command line arguments to be parsed. If omitted, `Base.ARGS` – the command
+line arguments passed to the Julia script – will be parsed.
+
+This function returns a [`ParseResult`](@ref) after parsing. It is basically a Dict-like
+object holding the values of options.
+
+```jldoctest
+using CliOptions
+
+spec = CliOptionSpec(
+    NamedOption(Int, "-n", "--num-workers"),
+    FlagOption("-i", "--ignore-case"; negators = "--case-sensitive"),
+    Positional("root"),
+    Positional("pattern", "patterns"; multiple = true);
+    program = "myfind"
+)
+
+args = parse_args(spec, split("-n 3 -i /var/log *.log", " "))
+println("num_workers: ", args.num_workers)
+println("ignore_case: ", args.ignore_case)
+println("root: ", args.root)
+println("patterns: ", args.patterns)
+
+# output
+
+num_workers: 3
+ignore_case: true
+root: /var/log
+patterns: ["*.log"]
+```
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParseResult()
