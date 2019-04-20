@@ -77,7 +77,8 @@ end
 
 
 """
-    Option([type::Type], short_name::String, long_name::String = ""; help = "")
+    Option([type::Type], short_name::String, long_name::String = "";
+           default = nothing, help = "")
 
 Type representing a command line option whose value is a following argument. An option
 appears in a format like `-a buzz`, `--foo-bar buzz` or `--foo-bar=buzz`.
@@ -85,9 +86,11 @@ appears in a format like `-a buzz`, `--foo-bar buzz` or `--foo-bar=buzz`.
 struct Option <: AbstractOption
     names::Vector{String}
     type::Type
+    default::Any
     help::String
 
-    function Option(type::Type, short_name::String, long_name::String = ""; help = "")
+    function Option(type::Type, short_name::String, long_name::String = "";
+                    default = nothing, help = "")
         if !applicable(type, "") && !applicable(parse, type, "")
             throw(ArgumentError("Type of an Option must be constructible or" *
                                 " `parse`able from a String: $(type)"))
@@ -103,12 +106,12 @@ struct Option <: AbstractOption
                 throw(ArgumentError("Invalid name for Option: \"$name\""))
             end
         end
-        new([n for n ∈ names], type, help)
+        new([n for n ∈ names], type, default, help)
     end
 end
 
-Option(short_name::String, long_name::String = ""; help = "") = begin
-    Option(String, short_name, long_name; help = help)
+function Option(short_name::String, long_name::String = ""; default = nothing, help = "")
+    Option(String, short_name, long_name; default = default, help = help)
 end
 
 function set_default!(result::ParseResult, o::Option)
@@ -153,11 +156,31 @@ function consume!(result::ParseResult, o::Option, args, i)
     i + 2
 end
 
+function post_parse_action!(result, o::Option)
+    # Do nothing if once parsed
+    if 1 ≤ get(result._counter, o, 0)
+        return
+    end
+
+    # Apply deafult value or throw error if no default is set
+    if o.default !== nothing
+        foreach(k -> result._dict[encode(k)] = o.default, o.names)
+    else
+        msg = "Option \"" * primary_name(o) * "\" must be specified"
+        throw(CliOptionError(msg))
+    end
+end
+
 _optval(o::Option) = uppercase(encode(2 ≤ length(o.names) ? o.names[2] : o.names[1]))
 friendly_name(o::Option) = "option"
 primary_name(o::Option) = o.names[1]
 function to_usage_tokens(o::Option)
-    [o.names[1] * " " * _optval(o)]
+    tokens = [o.names[1] * " " * _optval(o)]
+    if o.default !== nothing
+        tokens[1] = "[" * tokens[1]
+        tokens[end] = tokens[end] * "]"
+    end
+    tokens
 end
 function print_description(io::IO, o::Option)
     print_description(io, o.names, _optval(o), o.help)
@@ -428,7 +451,7 @@ end
 
 function post_parse_action!(result, o::Positional)
     # Do nothing if once parsed
-    if o ∈ keys(result._counter)
+    if 1 ≤ get(result._counter, o, 0)
         return
     end
 

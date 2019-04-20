@@ -51,6 +51,28 @@ using CliOptions
         @test_throws CliOptionError parse_args(spec, ["test.db", "test.txt"])
     end
 
+    @testset "Option" begin
+        @testset "required" begin
+            spec = CliOptionSpec(
+                Option("-a"),
+            )
+            @test_throws CliOptionError parse_args(spec, String[])
+            @test_throws CliOptionError parse_args(spec, ["-a"])
+            args = parse_args(spec, ["-a", "bar"])
+            @test args.a == "bar"
+            @test_throws CliOptionError parse_args(spec, ["-a", "bar", "-a"])
+        end
+
+        @testset "omittable" begin
+            spec = CliOptionSpec(
+                Option("-a"; default = "foo"),
+            )
+            args = parse_args(spec, String[])
+            @show args
+            @test args.a == "foo"
+        end
+    end
+
     @testset "FlagOption" begin  #TODO: 背反
         spec = CliOptionSpec(FlagOption("-a"; negators = ["-b"]), )
         args = parse_args(spec, split("-a", " "))

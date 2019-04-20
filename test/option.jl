@@ -84,4 +84,30 @@ using CliOptions
             @test_throws CliOptionError CliOptions.consume!(result, option, ["-n", "256"], 1)
         end
     end
+
+    @testset "post_parse_action!(::Option)" begin
+        # Once evaluated
+        let result = CliOptions.ParseResult()
+            option = Option("-n", default = nothing)
+            result._counter[option] = 1
+            rv = CliOptions.post_parse_action!(result, option)
+            @test rv === nothing
+            @test sorted_keys(result._dict) == String[]
+        end
+
+        # Not evaluated, no default value
+        let result = CliOptions.ParseResult()
+            option = Option("-n", default = nothing)
+            @test_throws CliOptionError CliOptions.post_parse_action!(result, option)
+        end
+
+        # Not evaluated, default value was set
+        let result = CliOptions.ParseResult()
+            option = Option("-n"; default = "foo")
+            rv = CliOptions.post_parse_action!(result, option)
+            @test rv === nothing
+            @test sorted_keys(result._dict) == ["n"]
+            @test result.n == "foo"
+        end
+    end
 end
