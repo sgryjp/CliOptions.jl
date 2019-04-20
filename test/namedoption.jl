@@ -4,7 +4,8 @@ using CliOptions
 
 @testset "NamedOption()" begin
     @testset "ctor" begin
-        @test_throws ArgumentError NamedOption()
+        @test_throws MethodError NamedOption()
+        @test_throws MethodError NamedOption("-f", "--foo", "--bar")
         @test_throws ArgumentError NamedOption("")
         @test_throws ArgumentError NamedOption("a")
         @test NamedOption("-a").names == ["-a"]

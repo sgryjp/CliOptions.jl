@@ -77,7 +77,7 @@ end
 
 
 """
-    NamedOption([type::Type], names::String...; help = "")
+    NamedOption([type::Type], short_name::String, long_name::String = ""; help = "")
 
 Type representing a command line option whose value is a following argument. A named option
 appears in a format like `-a buzz`, `--foo-bar buzz` or `--foo-bar=buzz`.
@@ -87,14 +87,12 @@ struct NamedOption <: AbstractOption
     type::Type
     help::String
 
-    function NamedOption(type::Type, names::String...; help = "")
+    function NamedOption(type::Type, short_name::String, long_name::String = ""; help = "")
         if !applicable(type, "") && !applicable(parse, type, "")
             throw(ArgumentError("Type of a NamedOption must be constructible or" *
                                 " `parse`able from a String: $(type)"))
         end
-        if length(names) == 0
-            throw(ArgumentError("NamedOption needs a name"))
-        end
+        names = long_name == "" ? [short_name] : [short_name, long_name]
         for name ∈ names
             if "" == name
                 throw(ArgumentError("Name of a NamedOption must not be empty"))
@@ -107,7 +105,9 @@ struct NamedOption <: AbstractOption
     end
 end
 
-NamedOption(names::String...; help = "") = NamedOption(String, names...; help = help)
+NamedOption(short_name::String, long_name::String = ""; help = "") = begin
+    NamedOption(String, short_name, long_name; help = help)
+end
 
 function set_default!(result::ParseResult, o::NamedOption)
     result._counter[o] = 0
