@@ -9,6 +9,7 @@ using CliOptions
             @test_throws ArgumentError CounterOption("a")
             @test_throws ArgumentError CounterOption("-")
             @test_throws ArgumentError CounterOption("--")
+            @test_throws ArgumentError CounterOption("-a"; decrementers = "")
             @test_throws ArgumentError CounterOption("-a"; decrementers = [""])
             @test_throws ArgumentError CounterOption("-a"; decrementers = ["a"])
             @test_throws ArgumentError CounterOption("-a"; decrementers = ["-"])
@@ -22,6 +23,10 @@ using CliOptions
         end
 
         @testset "decrementers" begin
+            option = CounterOption("-a", "-b", decrementers = "-c")
+            @test option.names == ["-a", "-b"]
+            @test option.decrementers == ["-c"]
+
             option = CounterOption("-a", "-b", decrementers = ["-c", "-d"])
             @test option.names == ["-a", "-b"]
             @test option.decrementers == ["-c", "-d"]
