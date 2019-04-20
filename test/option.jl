@@ -18,30 +18,39 @@ using CliOptions
     end
 
     @testset "consume(::Option)" begin
-        names = ["-d", "--depth"]
-        test_cases = [
-            (names, Vector{String}(), 1, AssertionError, nothing),
-            (names, [""],             1,             -1, nothing),
-            (names, ["-a"],           1,             -1, nothing),
-            (names, ["-d"],           1, CliOptionError, nothing),
-            (names, ["-d", "3"],      1,              3, Dict("d" => "3", "depth" => "3")),
-            (names, ["a", "-d"],      2, CliOptionError, nothing),
-            (names, ["a", "-d", "3"], 2,              4, Dict("d" => "3", "depth" => "3")),
-        ]
-        for (names, arg, index, xret, xresult) in test_cases
-            option = Option(names...)
-            result = CliOptions.ParseResult()
-            if xret isa Type && xret <: Exception
-                @test_throws xret CliOptions.consume!(result, option, arg, index)
-            else
-                @test CliOptions.consume!(result, option, arg, index) == xret
-                if xresult !== nothing
-                    @test sorted_keys(xresult) == sorted_keys(result._dict)
-                    for pair ∈ xresult
-                        @test pair ∈ result._dict
-                    end
-                end
-            end
+        option = Option("-d", "--depth")
+        let result = CliOptions.ParseResult()
+            @test_throws AssertionError CliOptions.consume!(result, option, String[], 1)
+        end
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, [""], 1)
+            @test next_index == -1
+            @test sorted_keys(result._dict) == String[]
+        end
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["-a"], 1)
+            @test next_index == -1
+            @test sorted_keys(result._dict) == String[]
+        end
+        let result = CliOptions.ParseResult()
+            @test_throws CliOptionError CliOptions.consume!(result, option, ["-d"], 1)
+        end
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["-d", "3"], 1)
+            @test next_index == 3
+            @test sorted_keys(result._dict) == ["d", "depth"]
+            @test result.d == "3"
+            @test result.depth == "3"
+        end
+        let result = CliOptions.ParseResult()
+            @test_throws CliOptionError CliOptions.consume!(result, option, ["a", "-d"], 2)
+        end
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["a", "-d", "3"], 2)
+            @test next_index == 4
+            @test sorted_keys(result._dict) == ["d", "depth"]
+            @test result.d == "3"
+            @test result.depth == "3"
         end
     end
 
