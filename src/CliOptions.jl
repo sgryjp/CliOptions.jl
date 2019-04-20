@@ -399,8 +399,7 @@ struct Positional <: AbstractOption
 end
 
 function set_default!(result::ParseResult, o::Positional)
-    result._counter[o] = 0
-    foreach(k -> result._dict[encode(k)] = o.default, o.names)
+    # Do nothing
 end
 
 function consume!(result::ParseResult, o::Positional, args, i)
@@ -408,7 +407,7 @@ function consume!(result::ParseResult, o::Positional, args, i)
     @assert "" ∉ o.names
 
     # Skip if this node is already processed
-    count::Int = get(result._counter, o, -1)
+    count::Int = get(result._counter, o, 0)
     max_nvalues = o.multiple ? Inf : 1
     if max_nvalues ≤ count
         return -1
@@ -424,6 +423,21 @@ function consume!(result::ParseResult, o::Positional, args, i)
         value = args[i]
         foreach(k -> result._dict[encode(k)] = value, o.names)
         return i + 1
+    end
+end
+
+function post_parse_action!(result, o::Positional)
+    # Do nothing if once parsed
+    if o ∈ keys(result._counter)
+        return
+    end
+
+    # Apply deafult value or throw error if no default is set
+    if o.default === nothing
+        msg = "\"$(primary_name(o))\" must be specified"
+        throw(CliOptionError(msg))
+    else
+        foreach(k -> result._dict[encode(k)] = o.default, o.names)
     end
 end
 
@@ -607,14 +621,10 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
         i = next_index
     end
 
-    # Take care of omitted options  #TODO: Improve control flow
-    for option ∈ spec.root.options
-        if option isa Positional
-            if get(result._counter, option, 0) ≤ 0 && option.default === nothing
-                msg = "A " * friendly_name(option) *
-                        " \"" * primary_name(option) * "\" was not specified"
-                throw(CliOptionError(msg))
-            end
+    # Take care of omitted options
+    for option ∈ (o for o in spec.root.options if get(result._counter, o, 0) ≤ 0)
+        if applicable(post_parse_action!, result, option)
+            post_parse_action!(result, option)
         end
     end
 

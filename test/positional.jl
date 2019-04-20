@@ -87,4 +87,30 @@ using CliOptions: consume!
             end
         end
     end
+
+    @testset "post_parse_action!(::Positional)" begin
+        # Once evaluated
+        let result = CliOptions.ParseResult()
+            option = Positional("file", default = nothing)
+            result._counter[option] = 1
+            rv = CliOptions.post_parse_action!(result, option)
+            @test rv === nothing
+            @test sorted_keys(result._dict) == String[]
+        end
+
+        # Not evaluated, no default value
+        let result = CliOptions.ParseResult()
+            option = Positional("file", default = nothing)
+            @test_throws CliOptionError CliOptions.post_parse_action!(result, option)
+        end
+
+        # Not evaluated, default value was set
+        let result = CliOptions.ParseResult()
+            option = Positional("file"; default = "foo")
+            rv = CliOptions.post_parse_action!(result, option)
+            @test rv === nothing
+            @test sorted_keys(result._dict) == ["file"]
+            @test result.file == "foo"
+        end
+    end
 end
