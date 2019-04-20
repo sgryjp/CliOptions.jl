@@ -77,10 +77,10 @@ end
 
 
 """
-    NamedOption([type::Type], names::String...)
+    NamedOption([type::Type], names::String...; help = "")
 
-A command line option type whose value is a following argument. A named option appears in a
-format like `-a buzz`, `--foo-bar buzz` or `--foo-bar=buzz`.
+Type representing a command line option whose value is a following argument. A named option
+appears in a format like `-a buzz`, `--foo-bar buzz` or `--foo-bar=buzz`.
 """
 struct NamedOption <: AbstractOption
     names::Vector{String}
@@ -151,26 +151,22 @@ function consume!(result::ParseResult, o::NamedOption, args, i)
     i + 2
 end
 
+_optval(o::NamedOption) = uppercase(encode(2 ≤ length(o.names) ? o.names[2] : o.names[1]))
 friendly_name(o::NamedOption) = "option"
 primary_name(o::NamedOption) = o.names[1]
 function to_usage_tokens(o::NamedOption)
-    [o.names[1] * " " * uppercase(encode(2 ≤ length(o.names) ? o.names[2] : o.names[1]))]
+    [o.names[1] * " " * _optval(o)]
 end
 function print_description(io::IO, o::NamedOption)
-    heading = join(o.names, ", ")
-    print(io, repeat(" ", 4) * heading)
-    if 16 ≤ length(heading) + 4
-        println(io)
-        print(io, repeat(" ", 16) * o.help)
-    else
-        print(io, repeat(" ", 16 - 4 - length(heading)) * o.help)
-    end
-    println(io)
+    print_description(io, o.names, _optval(o), o.help)
 end
 
 
 """
-    FlagOption
+    FlagOption(names::String...;
+               negators = String[],
+               help = "",
+               negator_help = "")
 
 `FlagOption` represents a so-called "flag" command line option. An option of this type takes
 no value and whether it was specified becomes a boolean value.
@@ -178,8 +174,11 @@ no value and whether it was specified becomes a boolean value.
 struct FlagOption <: AbstractOption
     names::Vector{String}
     negators::Vector{String}
+    help::String
+    negator_help::String
 
-    function FlagOption(names::String...; negators::Vector{String} = String[])
+    function FlagOption(names::String...;
+                        negators::Vector{String} = String[], help = "", negator_help = "")
         if length(names) == 0
             throw(ArgumentError("At least one name for a FlagOption must be specified"))
         end
@@ -193,7 +192,10 @@ struct FlagOption <: AbstractOption
                 throw(ArgumentError("Invalid name for FlagOption: \"$name\""))
             end
         end
-        new([n for n ∈ names], [n for n ∈ negators])
+        if negator_help == ""
+            negator_help = "Negate usage of " * names[1] * " option"
+        end
+        new([n for n ∈ names], [n for n ∈ negators], help, negator_help)
     end
 end
 
@@ -244,14 +246,17 @@ function to_usage_tokens(o::FlagOption)
     ["[" * o.names[1] * latter_part * "]"]
 end
 function print_description(io::IO, o::FlagOption)
-    @assert false  #TODO
+    print_description(io, o.names, "", o.help)
+    print_description(io, o.negators, "", o.negator_help)
 end
 
 
 """
     CounterOption([type::Type], names::String...;
-                  decrementers::Vector{String} = [],
-                  default::Signed = 0)
+                  decrementers = String[],
+                  default::Signed = 0,
+                  help::String = "",
+                  decrementer_help = "")
 
 A type represents a flag-like command line option. Total number of times a `CounterOption`
 was specified becomes the option's value.
@@ -261,10 +266,14 @@ struct CounterOption <: AbstractOption
     decrementers::Vector{String}
     default::Signed
     type::Type
+    help::String
+    decrementer_help::String
 
     function CounterOption(type::Type, names::String...;
                            decrementers::Vector{String} = String[],
-                           default::Signed = 0)
+                           default::Signed = 0,
+                           help::String = "",
+                           decrementer_help::String = "")
         if length(names) == 0
             throw(ArgumentError("At least one name for a CounterOption must be specified"))
         end
@@ -282,13 +291,21 @@ struct CounterOption <: AbstractOption
             throw(ArgumentError("Type of a CounterOption must be a subtype of Signed:" *
                                 " \"$type\""))
         end
-        new([n for n ∈ names], [n for n ∈ decrementers], type(default), type)
+        if decrementer_help == ""
+            decrementer_help = "Opposite of " * names[1] * " option"
+        end
+        new([n for n ∈ names], [n for n ∈ decrementers], type(default), type, help,
+            decrementer_help)
     end
 end
 function CounterOption(names::String...;
                        decrementers::Vector{String} = String[],
-                       default::Signed = 0)
-    CounterOption(Int, names...; decrementers = decrementers, default = default)
+                       default::Signed = 0,
+                       help::String = "",
+                       decrementer_help::String = "")
+    CounterOption(Int, names...;
+                  decrementers = decrementers, default = default, help = help,
+                  decrementer_help = decrementer_help)
 end
 
 function set_default!(result::ParseResult, o::CounterOption)
@@ -335,12 +352,15 @@ function to_usage_tokens(o::CounterOption)
     ["[" * o.names[1] * latter_part * "]"]
 end
 function print_description(io::IO, o::CounterOption)
-    @assert false  #TODO
+    print_description(io, o.names, "", o.help)
+    print_description(io, o.decrementers, "", o.decrementer_help)
 end
 
 
 """
-    Positional
+    Positional(singular_name, plural_name = "";
+               multiple = false,
+               default = nothing)
 
 `Positional` represents a command line argument which are not an option name nor an option
 value.
@@ -349,10 +369,12 @@ struct Positional <: AbstractOption
     names::Vector{String}
     multiple::Bool
     default::Any
+    help::String
 
     function Positional(singular_name, plural_name = "";
                         multiple = false,
-                        default::Any = nothing)
+                        default::Any = nothing,
+                        help::String = "")
         if singular_name == ""
             throw(ArgumentError("Name of a Positional must not be empty"))
         elseif startswith(singular_name, '-')
@@ -364,9 +386,9 @@ struct Positional <: AbstractOption
         end
 
         if plural_name == ""
-            return new([singular_name], multiple, default)
+            return new([singular_name], multiple, default, help)
         else
-            return new([singular_name, plural_name], multiple, default)
+            return new([singular_name, plural_name], multiple, default, help)
         end
     end
 end
@@ -411,7 +433,7 @@ function to_usage_tokens(o::Positional)
     end
 end
 function print_description(io::IO, o::Positional)
-    @assert false  #TODO
+    print_description(io, [uppercase(n) for n in o.names[1:1]], "", o.help)
 end
 
 
@@ -452,7 +474,6 @@ end
 
 function print_description(io::IO, o::OptionGroup)
     if o.name != ""
-        println(io)
         println(io, "  " * o.name * ":")
     end
     for option in o.options
@@ -476,49 +497,42 @@ A type representing a command line option specification.
 """
 struct CliOptionSpec
     root::OptionGroup
-    program::String
+    usage::String
 
     function CliOptionSpec(options::AbstractOption...; program = PROGRAM_FILE)
         if program == ""
             program = "PROGRAM"
         end
-        new(OptionGroup("", options...), program)
+        usage = "Usage: " * program * " " * join(Iterators.flatten(to_usage_tokens(o)
+                                                                   for o in options),
+                                                 " ")
+        new(OptionGroup("", options...), usage)
     end
 end
 
 
 """
-    print_usage([io::IO], spec::CliOptionSpec; verbose = false)
+    show([io::IO], spec::CliOptionSpec)
 
-Write to `io` a usage (help) message for the command line specification.
-If `verbose` is true, not only the usage message but also long description will be written.
+Write fully descriptive usage (help) message to `io`. If you want to print only the first
+line of the usage message, print `CliOptionSpec.usage` instead.
 """
-function print_usage(io::IO, spec::CliOptionSpec; verbose = false)
-    tokens = []
-    for option in spec.root
-        push!(tokens, to_usage_tokens(option)...)
-    end
-
-    println(io, "Usage: " * spec.program * " " * join(tokens, " "))
-    if verbose
-        println(io)
-        println(io, "Options:")
-        print_description(io, spec.root)
-    end
+function Base.show(io::IO, spec::CliOptionSpec)
+    println(io, spec.usage)
+    println(io)
+    println(io, "Options:")
+    print_description(io, spec.root)
 end
-
-function print_usage(spec::CliOptionSpec)
-    print_usage(stdout, spec)
-end
+Base.show(spec::CliOptionSpec) = show(stdout, spec)
 
 
 """
-    parse_args(spec::CliOptionSpec, args=ARGS)
+    parse_args(spec::CliOptionSpec, args = ARGS)
 
-Parse command line options according to `spec`.
+Parse command line options in the `args` according to the `spec`.
 
 `args` is the command line arguments to be parsed. If omitted, this function parses
-`Base.ARGS` which is an array of command line arguments passed to the Julia script.
+`Base.ARGS` — which is an array of command line arguments passed to the Julia script.
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParseResult()
@@ -556,7 +570,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
         i = next_index
     end
 
-    # Take care of omitted options  #TODO: Improve contron flow
+    # Take care of omitted options  #TODO: Improve control flow
     for option ∈ spec.root.options
         if option isa Positional
             if get(result._counter, option, 0) ≤ 0 && option.default === nothing
@@ -573,6 +587,17 @@ end
 # Internals
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
 is_option(names) = any([startswith(name, '-') && 2 ≤ length(name) for name ∈ names])
+function print_description(io, names, val, help)
+    heading = join(names, ", ") * (val != "" ? " $val" : "")
+    print(io, repeat(" ", 4) * heading)
+    if 16 ≤ length(heading) + 4
+        println(io)
+        println(io, repeat(" ", 16) * help)
+    else
+        println(io, repeat(" ", 16 - 4 - length(heading)) * help)
+    end
+    println(io)
+end
 
 
 export AbstractOption,
@@ -583,7 +608,6 @@ export AbstractOption,
        NamedOption,
        OptionGroup,
        Positional,
-       parse_args,
-       print_usage
+       parse_args
 
 end # module
