@@ -4,7 +4,8 @@ using CliOptions
 @testset "CounterOption()" begin
     @testset "ctor" begin
         @testset "names" begin
-        @test_throws ArgumentError CounterOption()
+            @test_throws MethodError CounterOption()
+            @test_throws MethodError CounterOption("-a", "--foo", "--bar")
             @test_throws ArgumentError CounterOption("")
             @test_throws ArgumentError CounterOption("a")
             @test_throws ArgumentError CounterOption("-")

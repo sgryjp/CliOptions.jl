@@ -256,7 +256,7 @@ end
 
 
 """
-    CounterOption([type::Type], names::String...;
+    CounterOption([type::Type], short_name::String, long_name::String = "";
                   decrementers::Union{String,Vector{String}} = String[],
                   default::Signed = 0,
                   help::String = "",
@@ -273,14 +273,12 @@ struct CounterOption <: AbstractOption
     help::String
     decrementer_help::String
 
-    function CounterOption(type::Type, names::String...;
+    function CounterOption(type::Type, short_name::String, long_name::String = "";
                            decrementers::Union{String,Vector{String}} = String[],
                            default::Signed = 0,
                            help::String = "",
                            decrementer_help::String = "")
-        if length(names) == 0
-            throw(ArgumentError("At least one name for a CounterOption must be specified"))
-        end
+        names = long_name == "" ? [short_name] : [short_name, long_name]
         if decrementers isa String
             decrementers = [decrementers]
         end
@@ -305,12 +303,12 @@ struct CounterOption <: AbstractOption
             decrementer_help)
     end
 end
-function CounterOption(names::String...;
+function CounterOption(short_name::String, long_name::String = "";
                        decrementers::Union{String,Vector{String}} = String[],
                        default::Signed = 0,
                        help::String = "",
                        decrementer_help::String = "")
-    CounterOption(Int, names...;
+    CounterOption(Int, short_name, long_name;
                   decrementers = decrementers, default = default, help = help,
                   decrementer_help = decrementer_help)
 end
