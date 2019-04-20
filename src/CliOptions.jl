@@ -166,14 +166,12 @@ function post_parse_action!(result, o::Option)
     if o.default !== nothing
         foreach(k -> result._dict[encode(k)] = o.default, o.names)
     else
-        msg = "Option \"" * primary_name(o) * "\" must be specified"
+        msg = "Option \"$(o.names[1])\" must be specified"
         throw(CliOptionError(msg))
     end
 end
 
 _optval(o::Option) = uppercase(encode(2 ≤ length(o.names) ? o.names[2] : o.names[1]))
-friendly_name(o::Option) = "option"
-primary_name(o::Option) = o.names[1]
 function to_usage_tokens(o::Option)
     tokens = [o.names[1] * " " * _optval(o)]
     if o.default !== nothing
@@ -266,8 +264,6 @@ function consume!(result::ParseResult, o::FlagOption, args, i)
     i + 1
 end
 
-friendly_name(o::FlagOption) = "flag option"
-primary_name(o::FlagOption) = o.names[1]
 function to_usage_tokens(o::FlagOption)
     latter_part = 1 ≤ length(o.negators) ? " | " * o.negators[1] : ""
     ["[" * o.names[1] * latter_part * "]"]
@@ -373,8 +369,6 @@ function consume!(result::ParseResult, o::CounterOption, args, i)
     i + 1
 end
 
-friendly_name(o::CounterOption) = "counter option"
-primary_name(o::CounterOption) = o.names[1]
 function to_usage_tokens(o::CounterOption)
     latter_part = 1 ≤ length(o.decrementers) ? " | " * o.decrementers[1] : ""
     ["[" * o.names[1] * latter_part * "]"]
@@ -457,15 +451,13 @@ function post_parse_action!(result, o::Positional)
 
     # Apply deafult value or throw error if no default is set
     if o.default === nothing
-        msg = "\"$(primary_name(o))\" must be specified"
+        msg = "\"$(o.names[1])\" must be specified"
         throw(CliOptionError(msg))
     else
         foreach(k -> result._dict[encode(k)] = o.default, o.names)
     end
 end
 
-friendly_name(o::Positional) = "positional argument"
-primary_name(o::Positional) = o.names[1]
 function to_usage_tokens(o::Positional)
     name = uppercase(o.names[1])
     if o.multiple

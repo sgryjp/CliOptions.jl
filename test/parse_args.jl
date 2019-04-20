@@ -68,7 +68,6 @@ using CliOptions
                 Option("-a"; default = "foo"),
             )
             args = parse_args(spec, String[])
-            @show args
             @test args.a == "foo"
         end
     end
