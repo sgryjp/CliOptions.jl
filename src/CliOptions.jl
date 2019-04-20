@@ -99,6 +99,8 @@ struct Option <: AbstractOption
             elseif name[1] != '-'
                 throw(ArgumentError("Name of an Option must start with a hyphen: " *
                                     name))
+            elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
+                throw(ArgumentError("Invalid name for Option: \"$name\""))
             end
         end
         new([n for n ∈ names], type, help)
