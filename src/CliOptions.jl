@@ -17,11 +17,15 @@ Base.showerror(io::IO, e::CliOptionError) = print(io, "CliOptionError: " * e.msg
 """
     AbstractOption
 
-Abstract supertype representing a command line option. Concrete subtypes of this are:
+Abstract supertype representing a command line option. Concrete subtypes are:
 
-- [`NamedOption`](@ref) ... a command line option
-- [`Positional`](@ref) ... a command line argument which isn't a `NamedOption`
-- [`OptionGroup`](@ref)
+- [`NamedOption`](@ref) ... an option which takes a following argument as its value
+- [`FlagOption`](@ref) ... an option of which existence becomes its boolean value
+- [`CounterOption`](@ref) ... an option of which number of usage becomes its integer value
+- [`Positional`](@ref) ... an argument which is not an option
+
+Note that a group of options represented with `AbstractOptionGroup` is also considered as
+an `AbstractOption` so it can be used to construct `CliOptionSpec`.
 """
 abstract type AbstractOption end
 
@@ -29,13 +33,9 @@ abstract type AbstractOption end
 """
     AbstractOptionGroup
 
-Abstract type representing a group of command line options. Each command line option belongs
-to a group is `AbstractOption`, and `AbstractOptionGroup` itself is also an
-`AbstractOption`.
+Abstract type representing a group of command line options. Concrete subtypes are:
 
-There are 1 defined subtype:
-
-- OptionGroup
+- [`OptionGroup`](@ref)
 """
 abstract type AbstractOptionGroup <: AbstractOption end
 
