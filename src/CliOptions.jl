@@ -19,7 +19,7 @@ Base.showerror(io::IO, e::CliOptionError) = print(io, "CliOptionError: " * e.msg
 
 Abstract supertype representing a command line option. Concrete subtypes are:
 
-- [`NamedOption`](@ref) ... an option which takes a following argument as its value
+- [`Option`](@ref) ... an option which takes a following argument as its value
 - [`FlagOption`](@ref) ... an option of which existence becomes its boolean value
 - [`CounterOption`](@ref) ... an option of which number of usage becomes its integer value
 - [`Positional`](@ref) ... an argument which is not an option
@@ -77,27 +77,27 @@ end
 
 
 """
-    NamedOption([type::Type], short_name::String, long_name::String = ""; help = "")
+    Option([type::Type], short_name::String, long_name::String = ""; help = "")
 
-Type representing a command line option whose value is a following argument. A named option
+Type representing a command line option whose value is a following argument. An option
 appears in a format like `-a buzz`, `--foo-bar buzz` or `--foo-bar=buzz`.
 """
-struct NamedOption <: AbstractOption
+struct Option <: AbstractOption
     names::Vector{String}
     type::Type
     help::String
 
-    function NamedOption(type::Type, short_name::String, long_name::String = ""; help = "")
+    function Option(type::Type, short_name::String, long_name::String = ""; help = "")
         if !applicable(type, "") && !applicable(parse, type, "")
-            throw(ArgumentError("Type of a NamedOption must be constructible or" *
+            throw(ArgumentError("Type of an Option must be constructible or" *
                                 " `parse`able from a String: $(type)"))
         end
         names = long_name == "" ? [short_name] : [short_name, long_name]
         for name ∈ names
             if "" == name
-                throw(ArgumentError("Name of a NamedOption must not be empty"))
+                throw(ArgumentError("Name of an Option must not be empty"))
             elseif name[1] != '-'
-                throw(ArgumentError("Name of a NamedOption must start with a hyphen: " *
+                throw(ArgumentError("Name of an Option must start with a hyphen: " *
                                     name))
             end
         end
@@ -105,15 +105,15 @@ struct NamedOption <: AbstractOption
     end
 end
 
-NamedOption(short_name::String, long_name::String = ""; help = "") = begin
-    NamedOption(String, short_name, long_name; help = help)
+Option(short_name::String, long_name::String = ""; help = "") = begin
+    Option(String, short_name, long_name; help = help)
 end
 
-function set_default!(result::ParseResult, o::NamedOption)
+function set_default!(result::ParseResult, o::Option)
     result._counter[o] = 0
 end
 
-function consume!(result::ParseResult, o::NamedOption, args, i)
+function consume!(result::ParseResult, o::Option, args, i)
     @assert 1 ≤ i ≤ length(args)
     if args[i] ∉ o.names
         return -1
@@ -151,13 +151,13 @@ function consume!(result::ParseResult, o::NamedOption, args, i)
     i + 2
 end
 
-_optval(o::NamedOption) = uppercase(encode(2 ≤ length(o.names) ? o.names[2] : o.names[1]))
-friendly_name(o::NamedOption) = "option"
-primary_name(o::NamedOption) = o.names[1]
-function to_usage_tokens(o::NamedOption)
+_optval(o::Option) = uppercase(encode(2 ≤ length(o.names) ? o.names[2] : o.names[1]))
+friendly_name(o::Option) = "option"
+primary_name(o::Option) = o.names[1]
+function to_usage_tokens(o::Option)
     [o.names[1] * " " * _optval(o)]
 end
-function print_description(io::IO, o::NamedOption)
+function print_description(io::IO, o::Option)
     print_description(io, o.names, _optval(o), o.help)
 end
 
@@ -548,7 +548,7 @@ object holding the values of options.
 using CliOptions
 
 spec = CliOptionSpec(
-    NamedOption(Int, "-n", "--num-workers"),
+    Option(Int, "-n", "--num-workers"),
     FlagOption("-i", "--ignore-case"; negators = "--case-sensitive"),
     Positional("root"),
     Positional("pattern", "patterns"; multiple = true);
@@ -640,7 +640,7 @@ export AbstractOption,
        CliOptionSpec,
        CounterOption,
        FlagOption,
-       NamedOption,
+       Option,
        OptionGroup,
        Positional,
        parse_args

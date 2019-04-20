@@ -35,7 +35,7 @@ OptionGroup
 ### Concrete options
 
 ```@docs
-NamedOption
+Option
 FlagOption
 CounterOption
 Positional

@@ -3,7 +3,7 @@ using CliOptions
 
 @testset "parse_args()" begin
     @testset "reparsing" begin
-        let spec = CliOptionSpec(NamedOption("-n", "--num-workers"), FlagOption("-i"))
+        let spec = CliOptionSpec(Option("-n", "--num-workers"), FlagOption("-i"))
             args = parse_args(spec, ["-i", "-n", "3"])
             @test args.i == true
             @test args.n == "3"
@@ -26,7 +26,7 @@ using CliOptions
 
     @testset "Mixed options" begin
         spec = CliOptionSpec(
-            NamedOption("-n", "--num-workers"),
+            Option("-n", "--num-workers"),
             FlagOption("-i", "--ignore-case", negators = ["--case-sensitive"]),
             Positional("filename"),
         )

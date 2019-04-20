@@ -2,22 +2,22 @@ using Dates
 using Test
 using CliOptions
 
-@testset "NamedOption()" begin
+@testset "Option()" begin
     @testset "ctor" begin
-        @test_throws MethodError NamedOption()
-        @test_throws MethodError NamedOption("-f", "--foo", "--bar")
-        @test_throws ArgumentError NamedOption("")
-        @test_throws ArgumentError NamedOption("a")
-        @test NamedOption("-a").names == ["-a"]
-        @test NamedOption("-a", "-b").names == ["-a", "-b"]
+        @test_throws MethodError Option()
+        @test_throws MethodError Option("-f", "--foo", "--bar")
+        @test_throws ArgumentError Option("")
+        @test_throws ArgumentError Option("a")
+        @test Option("-a").names == ["-a"]
+        @test Option("-a", "-b").names == ["-a", "-b"]
 
-        @test_throws ArgumentError NamedOption(Exception, "-a")
-        @test NamedOption(String, "-a").type == String
-        @test NamedOption(DateTime, "-a").type == DateTime  # constructible
-        @test NamedOption(UInt32, "-a").type == UInt32      # `parse`able
+        @test_throws ArgumentError Option(Exception, "-a")
+        @test Option(String, "-a").type == String
+        @test Option(DateTime, "-a").type == DateTime  # constructible
+        @test Option(UInt32, "-a").type == UInt32      # `parse`able
     end
 
-    @testset "consume(::NamedOption)" begin
+    @testset "consume(::Option)" begin
         names = ["-d", "--depth"]
         test_cases = [
             (names, Vector{String}(), 1, AssertionError, nothing),
@@ -29,7 +29,7 @@ using CliOptions
             (names, ["a", "-d", "3"], 2,              4, Dict("d" => "3", "depth" => "3")),
         ]
         for (names, arg, index, xret, xresult) in test_cases
-            option = NamedOption(names...)
+            option = Option(names...)
             result = CliOptions.ParseResult()
             if xret isa Type && xret <: Exception
                 @test_throws xret CliOptions.consume!(result, option, arg, index)
@@ -45,8 +45,8 @@ using CliOptions
         end
     end
 
-    @testset "consume!(::NamedOption); type, constructible" begin
-        let option = NamedOption(Date, "-d", "--date")
+    @testset "consume!(::Option); type, constructible" begin
+        let option = Option(Date, "-d", "--date")
             result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-d", "2006-01-02"], 1)
             @test next_index == 3
@@ -54,8 +54,8 @@ using CliOptions
         end
     end
 
-    @testset "consume!(::NamedOption); type, parsable" begin
-        let option = NamedOption(UInt8, "-n", "--number")
+    @testset "consume!(::Option); type, parsable" begin
+        let option = Option(UInt8, "-n", "--number")
             result = CliOptions.ParseResult()
             @test_throws CliOptionError CliOptions.consume!(result, option, ["-n", "-1"], 1)
 
