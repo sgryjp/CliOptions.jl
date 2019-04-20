@@ -164,7 +164,7 @@ end
 
 """
     FlagOption(names::String...;
-               negators = String[],
+               negators::Union{String,Vector{String}} = "",
                help = "",
                negator_help = "")
 
@@ -178,9 +178,13 @@ struct FlagOption <: AbstractOption
     negator_help::String
 
     function FlagOption(names::String...;
-                        negators::Vector{String} = String[], help = "", negator_help = "")
+                        negators::Union{String,Vector{String}} = String[],
+                        help = "", negator_help = "")
         if length(names) == 0
             throw(ArgumentError("At least one name for a FlagOption must be specified"))
+        end
+        if negators isa String
+            negators = [negators]
         end
         for name in unique(vcat(collect(names), negators))
             if name == ""
