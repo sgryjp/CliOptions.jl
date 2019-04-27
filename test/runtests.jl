@@ -6,6 +6,7 @@ sorted_keys = sort ∘ collect ∘ keys
 @testset "CliOptions" begin
 
     include("internals.jl")
+    include("parseresult.jl")
     include("option.jl")
     include("flagoption.jl")
     include("counteroption.jl")

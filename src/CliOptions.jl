@@ -52,26 +52,22 @@ struct ParseResult
     ParseResult() = new(Dict{String,Any}(),Dict{AbstractOption,Int}())
 end
 
-function Base.getindex(args::ParseResult, key)
+function Base.getindex(result::ParseResult, key)
     k = key isa Symbol ? String(key) : key
-    getindex(args._dict, k)
+    getindex(result._dict, k)
 end
 
-function Base.propertynames(args::ParseResult, private = false)
-    vcat([:_dict], [Symbol(k) for (k, v) ∈ getfield(args, :_dict)])
+function Base.propertynames(result::ParseResult, private = false)
+    vcat([:_dict, :_counter], [Symbol(k) for (k, v) ∈ getfield(result, :_dict)])
 end
 
-function Base.getproperty(args::ParseResult, name::String)
-    Base.getproperty(args::ParseResult, Symbol(name))
-end
-
-function Base.getproperty(args::ParseResult, name::Symbol)
+function Base.getproperty(result::ParseResult, name::Symbol)
     if name == :_dict
-        return getfield(args, :_dict)
+        return getfield(result, :_dict)
     elseif name == :_counter
-        return getfield(args, :_counter)
+        return getfield(result, :_counter)
     else
-        return getfield(args, :_dict)[String(name)]
+        return getfield(result, :_dict)[String(name)]
     end
 end
 
