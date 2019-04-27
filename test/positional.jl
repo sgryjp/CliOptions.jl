@@ -1,3 +1,4 @@
+using Dates
 using Test
 using CliOptions
 using CliOptions: consume!
@@ -84,6 +85,27 @@ using CliOptions: consume!
                 @test next_index == 3
                 @test sorted_keys(result._dict) == ["file"]
                 @test result.file == ["a", "b"]
+            end
+        end
+
+        @testset "type" begin
+            let result = CliOptions.ParseResult()
+                option = Positional(Int32, "number", "numbers", multiple = true)
+                next_index = consume!(result, option, ["2", "-3"], 1)
+                @test next_index == 3
+                @test sorted_keys(result._dict) == ["number", "numbers"]
+                @test result.numbers == [2, -3]
+            end
+            let result = CliOptions.ParseResult()
+                option = Positional(Date, "date", "dates", multiple = false)
+                next_index = consume!(result, option, ["2006-01-02"], 1)
+                @test next_index == 2
+                @test sorted_keys(result._dict) == ["date", "dates"]
+                @test result.date == Date(2006, 1, 2)
+            end
+            let result = CliOptions.ParseResult()
+                option = Positional(Date, "date", multiple = false)
+                @test_throws CliOptionError consume!(result, option, ["not_a_date"], 1)
             end
         end
     end

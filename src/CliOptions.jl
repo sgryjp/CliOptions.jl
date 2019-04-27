@@ -73,7 +73,7 @@ end
 
 
 """
-    Option([type::Type], short_name::String, long_name::String = "";
+    Option([type=String,] short_name::String, long_name::String = "";
            default = nothing, help = "")
 
 Type representing a command line option whose value is a following argument. An option
@@ -257,7 +257,7 @@ end
 
 
 """
-    CounterOption([type::Type], short_name::String, long_name::String = "";
+    CounterOption([type=Int,] short_name::String, long_name::String = "";
                   decrementers::Union{String,Vector{String}} = String[],
                   default::Signed = 0,
                   help::String = "",
@@ -362,7 +362,7 @@ end
 
 
 """
-    Positional(singular_name, plural_name = "";
+    Positional([type=String,] singular_name, plural_name = "";
                multiple = false,
                default = nothing)
 
@@ -371,11 +371,12 @@ value.
 """
 struct Positional <: AbstractOption
     names::Vector{String}
+    T::Type
     multiple::Bool
     default::Any
     help::String
 
-    function Positional(singular_name, plural_name = "";
+    function Positional(T::Type, singular_name, plural_name = "";
                         multiple = false,
                         default::Any = nothing,
                         help::String = "")
@@ -390,11 +391,19 @@ struct Positional <: AbstractOption
         end
 
         if plural_name == ""
-            return new([singular_name], multiple, default, help)
+            return new([singular_name], T, multiple, default, help)
         else
-            return new([singular_name, plural_name], multiple, default, help)
+            return new([singular_name, plural_name], T, multiple, default, help)
         end
     end
+end
+
+function Positional(singular_name, plural_name = "";
+                    multiple = false,
+                    default::Any = nothing,
+                    help::String = "")
+    Positional(String, singular_name, plural_name;
+               multiple = multiple, default = default, help = help)
 end
 
 function set_default!(result::ParseResult, o::Positional)
@@ -415,11 +424,11 @@ function consume!(result::ParseResult, o::Positional, args, i)
 
     # Determine value and update result
     if o.multiple
-        values = args[i:end]
+        values = [_parse(o.T, a) for a in args[i:end]]
         foreach(k -> result._dict[encode(k)] = values, o.names)
         return i + length(values)
     else
-        value = args[i]
+        value = _parse(o.T, args[i])
         foreach(k -> result._dict[encode(k)] = value, o.names)
         return i + 1
     end
@@ -631,7 +640,7 @@ end
 # Internals
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
 is_option(names) = any([startswith(name, '-') && 2 ≤ length(name) for name ∈ names])
-function _parse(T, s, argname = "")
+function _parse(T, s, optname = "")
     try
         if applicable(parse, T, s)
             return parse(T, s)
@@ -649,10 +658,11 @@ function _parse(T, s, argname = "")
         end
 
         # Throw exception with formatted message
-        if argname == ""
-            error("NOT IMPLEMENTED YET")  #TODO
+        if optname == ""
+            throw(CliOptionError("Unparsable positional argument of type $T: \"$s\" (" *
+                                 emsg * ")"))
         else
-            throw(CliOptionError("Unparsable value for $argname of type $T: \"$s\" (" *
+            throw(CliOptionError("Unparsable value for $optname of type $T: \"$s\" (" *
                                  emsg * ")"))
         end
     end
