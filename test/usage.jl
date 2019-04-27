@@ -6,6 +6,7 @@ using CliOptions
         spec = CliOptionSpec(
             Option("-f", "--foo-buzz", help = "an option here."),
             Option("-p", help = "another option here."),
+            program = ""
         )
 
         @test spec.usage == "Usage: PROGRAM -f FOO_BUZZ -p P"
@@ -34,6 +35,7 @@ using CliOptions
                 Option("-y", help = "objective variable"),
             ),
             Option("-t", help = "dtype (float or int)"),
+            program = ""
         )
 
         @test spec.usage == "Usage: PROGRAM -w WINDOW_FUNCTION -x X -y Y -t T"
