@@ -13,10 +13,9 @@ using CliOptions
         @test Option("-a").names == ["-a"]
         @test Option("-a", "-b").names == ["-a", "-b"]
 
-        @test_throws ArgumentError Option(Exception, "-a")
         @test Option(String, "-a").T == String
-        @test Option(DateTime, "-a").T == DateTime  # constructible
-        @test Option(UInt32, "-a").T == UInt32      # `parse`able
+        @test Option(DateTime, "-a").T == DateTime
+        @test Option(UInt32, "-a").T == UInt32
     end
 
     @testset "consume(::Option)" begin
@@ -82,6 +81,13 @@ using CliOptions
 
             result = CliOptions.ParseResult()
             @test_throws CliOptionError CliOptions.consume!(result, option, ["-n", "256"], 1)
+        end
+    end
+
+    @testset "consume!(::Option); type, inconvertible" begin
+        let option = Option(AbstractOption, "-a")
+            result = CliOptions.ParseResult()
+            @test_throws CliOptionError CliOptions.consume!(result, option, ["-a", "b"], 1)
         end
     end
 

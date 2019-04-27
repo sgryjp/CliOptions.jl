@@ -82,6 +82,9 @@ end
 
 Type representing a command line option whose value is a following argument. An option
 appears in a format like `-a buzz`, `--foo-bar buzz` or `--foo-bar=buzz`.
+
+If `type` parameter is set, option values will be converted to the type inside `parse_args`
+and be stored in a `ParseResult` which will be returned.
 """
 struct Option <: AbstractOption
     names::Vector{String}
@@ -91,10 +94,6 @@ struct Option <: AbstractOption
 
     function Option(T::Type, short_name::String, long_name::String = "";
                     default = nothing, help = "")
-        if !applicable(T, "") && !applicable(parse, T, "")
-            throw(ArgumentError("Type of an Option must be constructible or" *
-                                " `parse`able from a String: $T"))
-        end
         names = long_name == "" ? [short_name] : [short_name, long_name]
         for name ∈ names
             if "" == name
@@ -139,20 +138,7 @@ function consume!(result::ParseResult, o::Option, args, i)
     end
     result._counter[o] += 1
 
-    function cvt(x)
-        try
-            if applicable(o.T, "")
-                return o.T(x)
-            elseif applicable(parse, o.T, "")
-                return parse(o.T, x)
-            else
-                throw(AssertionError("THIS LINE MUST NOT BE EXECUTED"))
-            end
-        catch exc
-            throw(CliOptionError(exc.msg))
-        end
-    end
-    foreach(k -> result._dict[encode(k)] = cvt(args[i + 1]), o.names)
+    foreach(k -> result._dict[encode(k)] = _parse(o.T, args[i + 1], args[i]), o.names)
     i + 2
 end
 
@@ -649,6 +635,32 @@ end
 # Internals
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
 is_option(names) = any([startswith(name, '-') && 2 ≤ length(name) for name ∈ names])
+function _parse(T, s, argname = "")
+    try
+        if applicable(parse, T, s)
+            return parse(T, s)
+        else
+            return T(s)
+        end
+    catch exc
+        # Generate message expressing the error encountered
+        if :msg in fieldnames(typeof(exc))
+            emsg = exc.msg
+        else
+            buf = IOBuffer()
+            print(buf, exc)
+            emsg = String(take!(buf))
+        end
+
+        # Throw exception with formatted message
+        if argname == ""
+            error("NOT IMPLEMENTED YET")  #TODO
+        else
+            throw(CliOptionError("Unparsable value for $argname of type $T: \"$s\" (" *
+                                 emsg * ")"))
+        end
+    end
+end
 function print_description(io, names, val, help)
     heading = join(names, ", ") * (val != "" ? " $val" : "")
     print(io, repeat(" ", 4) * heading)
