@@ -14,9 +14,9 @@ using CliOptions
         @test Option("-a", "-b").names == ["-a", "-b"]
 
         @test_throws ArgumentError Option(Exception, "-a")
-        @test Option(String, "-a").type == String
-        @test Option(DateTime, "-a").type == DateTime  # constructible
-        @test Option(UInt32, "-a").type == UInt32      # `parse`able
+        @test Option(String, "-a").T == String
+        @test Option(DateTime, "-a").T == DateTime  # constructible
+        @test Option(UInt32, "-a").T == UInt32      # `parse`able
     end
 
     @testset "consume(::Option)" begin

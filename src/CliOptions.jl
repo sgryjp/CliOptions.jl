@@ -85,15 +85,15 @@ appears in a format like `-a buzz`, `--foo-bar buzz` or `--foo-bar=buzz`.
 """
 struct Option <: AbstractOption
     names::Vector{String}
-    type::Type
+    T::Type
     default::Any
     help::String
 
-    function Option(type::Type, short_name::String, long_name::String = "";
+    function Option(T::Type, short_name::String, long_name::String = "";
                     default = nothing, help = "")
-        if !applicable(type, "") && !applicable(parse, type, "")
+        if !applicable(T, "") && !applicable(parse, T, "")
             throw(ArgumentError("Type of an Option must be constructible or" *
-                                " `parse`able from a String: $(type)"))
+                                " `parse`able from a String: $T"))
         end
         names = long_name == "" ? [short_name] : [short_name, long_name]
         for name ∈ names
@@ -106,7 +106,7 @@ struct Option <: AbstractOption
                 throw(ArgumentError("Invalid name for Option: \"$name\""))
             end
         end
-        new([n for n ∈ names], type, default, help)
+        new([n for n ∈ names], T, default, help)
     end
 end
 
@@ -141,10 +141,10 @@ function consume!(result::ParseResult, o::Option, args, i)
 
     function cvt(x)
         try
-            if applicable(o.type, "")
-                return o.type(x)
-            elseif applicable(parse, o.type, "")
-                return parse(o.type, x)
+            if applicable(o.T, "")
+                return o.T(x)
+            elseif applicable(parse, o.T, "")
+                return parse(o.T, x)
             else
                 throw(AssertionError("THIS LINE MUST NOT BE EXECUTED"))
             end
@@ -288,11 +288,11 @@ struct CounterOption <: AbstractOption
     names::Vector{String}
     decrementers::Vector{String}
     default::Signed
-    type::Type
+    T::Type
     help::String
     decrementer_help::String
 
-    function CounterOption(type::Type, short_name::String, long_name::String = "";
+    function CounterOption(T::Type, short_name::String, long_name::String = "";
                            decrementers::Union{String,Vector{String}} = String[],
                            default::Signed = 0,
                            help::String = "",
@@ -311,14 +311,14 @@ struct CounterOption <: AbstractOption
                 throw(ArgumentError("Invalid name for CounterOption: \"$name\""))
             end
         end
-        if !(type <: Signed)
+        if !(T <: Signed)
             throw(ArgumentError("Type of a CounterOption must be a subtype of Signed:" *
-                                " \"$type\""))
+                                " \"$T\""))
         end
         if decrementer_help == ""
             decrementer_help = "Opposite of " * names[1] * " option"
         end
-        new([n for n ∈ names], [n for n ∈ decrementers], type(default), type, help,
+        new([n for n ∈ names], [n for n ∈ decrementers], T(default), T, help,
             decrementer_help)
     end
 end
@@ -334,7 +334,7 @@ end
 
 function set_default!(result::ParseResult, o::CounterOption)
     result._counter[o] = 0
-    foreach(k -> result._dict[encode(k)] = o.type(o.default), o.names)
+    foreach(k -> result._dict[encode(k)] = o.T(o.default), o.names)
 end
 
 function consume!(result::ParseResult, o::CounterOption, args, i)
@@ -358,7 +358,7 @@ function consume!(result::ParseResult, o::CounterOption, args, i)
     if diff == 0
         return -1
     end
-    value = o.type(get(result._dict, encode(o.names[1]), 0) + diff)
+    value = o.T(get(result._dict, encode(o.names[1]), 0) + diff)
 
     # Update counter
     count::Int = get(result._counter, o, -1)
