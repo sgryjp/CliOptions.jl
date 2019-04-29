@@ -188,16 +188,36 @@ using CliOptions
 
     @testset "OptionGroup" begin
         spec = CliOptionSpec(
-            OptionGroup("The Flags",
+            OptionGroup("The options",
                 Option("-a"),
                 Option("-b"),
             ),
         )
         @test_throws CliOptionError parse_args(spec, String[])
-        @test_throws CliOptionError parse_args(spec, ["-a", "foo"])
+        @test_throws CliOptionError parse_args(spec, split("-a foo"))
+        @test_throws CliOptionError parse_args(spec, split("-b bar"))
         args = parse_args(spec, split("-a foo -b bar"))
         @test args.a == "foo"
         @test args.b == "bar"
         @test_throws CliOptionError parse_args(spec, split("-a foo -b bar buzz"))
+    end
+
+    @testset "MutexGroup" begin
+        spec = CliOptionSpec(
+            MutexGroup("The options",
+                Option("-a"),
+                Option("-b"),
+                Option("-c"),
+            ),
+        )
+        @test_throws CliOptionError parse_args(spec, String[])
+        args = parse_args(spec, split("-a foo"))
+        @test args._dict == Dict("a" => "foo")
+        args = parse_args(spec, split("-b bar"))
+        @test args._dict == Dict("b" => "bar")
+        @test_throws CliOptionError parse_args(spec, split("-a foo -b bar"))
+        @test_throws CliOptionError parse_args(spec, split("-a foo -c buzz"))
+        @test_throws CliOptionError parse_args(spec, split("-a foo -b bar -c buzz"))
+        @test_throws CliOptionError parse_args(spec, split("-a foo quux"))
     end
 end

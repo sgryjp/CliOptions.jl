@@ -507,10 +507,10 @@ end
 one of the options is accepted. In other word, this is an OR operator for `AbstractOption`s.
 """
 struct OptionGroup <: AbstractOptionGroup
-    name::String
+    names::Tuple{String}
     options
 
-    OptionGroup(name::String, options::AbstractOption...) = new(name, options)
+    OptionGroup(name::String, options::AbstractOption...) = new((name,), options)
 end
 
 function set_default!(result::ParseResult, o::OptionGroup)
@@ -542,8 +542,8 @@ function to_usage_tokens(o::OptionGroup)
 end
 
 function print_description(io::IO, o::OptionGroup)
-    if o.name != ""
-        println(io, "  " * o.name * ":")
+    if o.names[1] != ""
+        println(io, "  " * o.names[1] * ":")
     end
     for option in o.options
         print_description(io, option)
@@ -555,6 +555,82 @@ function Base.iterate(o::OptionGroup)
 end
 
 function Base.iterate(o::OptionGroup, state)
+    state ≤ length(o.options) ? (o.options[state], state+1) : nothing
+end
+
+
+"""
+    MutexGroup(name::String, options::AbstractOption...)
+
+`MutexGroup` contains one or more `AbstractOption`s and accepts command line arguments only
+if exactly one of the options was accepted.
+"""
+struct MutexGroup <: AbstractOptionGroup
+    name::String
+    options
+
+    MutexGroup(name::String, options::AbstractOption...) = new(name, options)
+end
+
+function set_default!(result::ParseResult, o::MutexGroup)  # Same as from OptionGroup
+    foreach(o -> set_default!(result, o), o.options)
+end
+
+function consume!(result::ParseResult, o::MutexGroup, args, i)  # Same as from OptionGroup
+    for option in o.options
+        next_index = consume!(result, option, args, i)
+        if 0 < next_index
+            return next_index
+        end
+    end
+    return -1
+end
+
+function post_parse_action!(result, o::MutexGroup)
+    exceptions = Vector{Exception}()
+    for option in o.options
+        try
+            post_parse_action!(result, option)
+        catch ex
+            push!(exceptions, ex)
+        end
+    end
+    if length(o.options) - length(exceptions) != 1
+        buf = IOBuffer()
+        print(buf, "Exactly one of ")
+        print(buf, join([x.names[1] for x in o.options], ", ", " or "))
+        print(buf, " must be specified")
+        msg = String(take!(buf))
+        throw(CliOptionError(msg))
+    end
+end
+
+function to_usage_tokens(o::MutexGroup)
+    tokens = Vector{String}()
+    append!(tokens, to_usage_tokens(o.options[1]))
+    for option in o.options[2:end]
+        push!(tokens, "|")
+        append!(tokens, to_usage_tokens(option))
+    end
+    tokens[1] = "{" * tokens[1]
+    tokens[end] = tokens[end] * "}"
+    tokens
+end
+
+function print_description(io::IO, o::MutexGroup)  # Same as from OptionGroup
+    if o.name != ""
+        println(io, "  " * o.name * ":")
+    end
+    for option in o.options
+        print_description(io, option)
+    end
+end
+
+function Base.iterate(o::MutexGroup)  # Same as from OptionGroup
+    1 ≤ length(o.options) ? (o.options[1], 2) : nothing
+end
+
+function Base.iterate(o::MutexGroup, state)  # Same as from OptionGroup
     state ≤ length(o.options) ? (o.options[state], state+1) : nothing
 end
 
@@ -765,6 +841,7 @@ export AbstractOption,
        FlagOption,
        Option,
        OptionGroup,
+       MutexGroup,
        Positional,
        parse_args
 
