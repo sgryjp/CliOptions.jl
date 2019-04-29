@@ -185,4 +185,19 @@ using CliOptions
             @test args.files == ["a", "-b"]
         end
     end
+
+    @testset "OptionGroup" begin
+        spec = CliOptionSpec(
+            OptionGroup("The Flags",
+                Option("-a"),
+                Option("-b"),
+            ),
+        )
+        @test_throws CliOptionError parse_args(spec, String[])
+        @test_throws CliOptionError parse_args(spec, ["-a", "foo"])
+        args = parse_args(spec, split("-a foo -b bar"))
+        @test args.a == "foo"
+        @test args.b == "bar"
+        @test_throws CliOptionError parse_args(spec, split("-a foo -b bar buzz"))
+    end
 end

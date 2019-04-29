@@ -504,7 +504,7 @@ end
     OptionGroup(name::String, options::AbstractOption...)
 
 `OptionGroup` contains one or more `AbstractOption`s and accepts command line arguments if
-it sees one of the options. In other word, this is an OR operator for `AbstractOption`s.
+one of the options is accepted. In other word, this is an OR operator for `AbstractOption`s.
 """
 struct OptionGroup <: AbstractOptionGroup
     name::String
@@ -514,7 +514,7 @@ struct OptionGroup <: AbstractOptionGroup
 end
 
 function set_default!(result::ParseResult, o::OptionGroup)
-    foreach(o -> set_default!(result._dict, o), o.options)
+    foreach(o -> set_default!(result, o), o.options)
 end
 
 function consume!(result::ParseResult, o::OptionGroup, args, i)
@@ -525,6 +525,12 @@ function consume!(result::ParseResult, o::OptionGroup, args, i)
         end
     end
     return -1
+end
+
+function post_parse_action!(result, o::OptionGroup)
+    for option in o.options
+        post_parse_action!(result, option)
+    end
 end
 
 function to_usage_tokens(o::OptionGroup)
