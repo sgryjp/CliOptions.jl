@@ -18,7 +18,7 @@ using CliOptions
         @test Option(UInt32, "-a").T == UInt32
     end
 
-    @testset "consume(::Option)" begin
+    @testset "consume!(::Option)" begin
         option = Option("-d", "--depth")
         let result = CliOptions.ParseResult()
             @test_throws AssertionError CliOptions.consume!(result, option, String[], 1)
@@ -88,6 +88,148 @@ using CliOptions
         let option = Option(AbstractOption, "-a")
             result = CliOptions.ParseResult()
             @test_throws CliOptionError CliOptions.consume!(result, option, ["-a", "b"], 1)
+        end
+    end
+
+    @testset "consume!(::Option); validator, Vector{String}" begin
+        option = Option("-a", validator = ["foo", "bar"])
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["-a", "foo"], 1)
+            @test next_index == 3
+            @test result.a == "foo"
+        end
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["-a", "bar"], 1)
+            @test next_index == 3
+            @test result.a == "bar"
+        end
+        let result = CliOptions.ParseResult()
+            try
+                CliOptions.consume!(result, option, ["-a", "buzz"], 1)
+            catch ex
+                @test ex isa CliOptionError
+                @test occursin("buzz", ex.msg)
+                @test occursin("must be one of", ex.msg)
+                @test occursin("foo", ex.msg)
+                @test occursin("bar", ex.msg)
+            end
+        end
+    end
+
+    @testset "consume!(::Option); validator, Tuple{Vararg{Int}}" begin
+        option = Option(Int, "-a", validator = (7, 13))
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["-a", "7"], 1)
+            @test next_index == 3
+            @test result.a isa Int
+            @test result.a == 7
+        end
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["-a", "13"], 1)
+            @test next_index == 3
+            @test result.a isa Int
+            @test result.a == 13
+        end
+        let result = CliOptions.ParseResult()
+            try
+                CliOptions.consume!(result, option, ["-a", "9"], 1)
+            catch ex
+                @test ex isa CliOptionError
+                @test occursin("9", ex.msg)
+                @test occursin("must be one of", ex.msg)
+                @test occursin("7", ex.msg)
+                @test occursin("13", ex.msg)
+            end
+        end
+    end
+
+    @testset "consume!(::Option); validator, Regex" begin
+        option = Option("-a", validator = Regex("buz+"))
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["-a", "buzz"], 1)
+            @test next_index == 3
+            @test result.a == "buzz"
+        end
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["-a", "buz"], 1)
+            @test next_index == 3
+            @test result.a == "buz"
+        end
+        let result = CliOptions.ParseResult()
+            try
+                CliOptions.consume!(result, option, ["-a", "foo"], 1)
+            catch ex
+                @test ex isa CliOptionError
+                @test occursin("foo", ex.msg)
+                @test occursin("must match for", ex.msg)
+                @test occursin("buz+", ex.msg)
+            end
+        end
+    end
+
+    @testset "consume!(::Option); validator, String -> Bool" begin
+        option = Option("-a", validator = s -> s == "foo")
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["-a", "foo"], 1)
+            @test next_index == 3
+            @test result.a == "foo"
+        end
+
+        # String
+        let result = CliOptions.ParseResult()
+            try
+                CliOptions.consume!(result, option, ["-a", "bar"], 1)
+            catch ex
+                @test ex isa CliOptionError
+                @test occursin("bar", ex.msg)
+                @test occursin("validation failed", ex.msg)
+            end
+        end
+
+        # non-String
+        option = Option(Int8, "-a", validator = n -> iseven(n))
+        let result = CliOptions.ParseResult()
+            try
+                CliOptions.consume!(result, option, ["-a", "7"], 1)
+            catch ex
+                @test ex isa CliOptionError
+                @test occursin("Int8", ex.msg)
+                @test occursin("7", ex.msg)
+                @test occursin("validation failed", ex.msg)
+            end
+        end
+    end
+
+    @testset "consume!(::Option); validator, String -> String" begin
+        option = Option("-a", validator = s -> s == "foo" ? "" : "It's not foo")
+        let result = CliOptions.ParseResult()
+            next_index = CliOptions.consume!(result, option, ["-a", "foo"], 1)
+            @test next_index == 3
+            @test result.a == "foo"
+        end
+
+        # String
+        let result = CliOptions.ParseResult()
+            try
+                CliOptions.consume!(result, option, ["-a", "bar"], 1)
+            catch ex
+                @test ex isa CliOptionError
+                @test occursin("bar", ex.msg)
+                @test occursin("It's not foo", ex.msg)
+            end
+        end
+
+        # non-String
+        option = Option(Int8, "-a", validator = n -> iseven(n) ? "" : "must be even")
+        let result = CliOptions.ParseResult()
+            try
+                CliOptions.consume!(result, option, ["-a", "7"], 1)
+            catch ex
+                @test ex isa CliOptionError
+                @test occursin("Int8", ex.msg)
+                @test occursin("7", ex.msg)
+                @test occursin("must be even", ex.msg)
+            end
         end
     end
 

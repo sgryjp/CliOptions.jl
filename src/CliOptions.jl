@@ -74,22 +74,56 @@ end
 
 """
     Option([type=String,] short_name::String, long_name::String = "";
-           default = nothing, help = "")
+           default = nothing, validator = nothing, help = "")
 
-Type representing a command line option whose value is a following argument. An option
-appears in a format like `-a buzz`, `--foo-bar buzz` or `--foo-bar=buzz`.
+Type representing a command line option whose value is a following argument. Two forms of
+option notations are supported:
+
+1. Short form (e.g.: `-n 42`)
+   - Starting with a hyphen, one character follows it
+   - A following command line argument will be the option's value
+2. Long form (e.g.: `--foo-bar`)
+   - Starting with two hyphens, hyphen-separated words follow them
+   - Value can be specified as one of the two forms below:
+     1. `--foo-bar value`; a following command line argument becomes the option's value
+     2. `--foo-bar=value`; characters after an equal sign following the option name becomes
+        the option's value
 
 If `type` parameter is set, option values will be converted to the type inside `parse_args`
-and be stored in a `ParseResult` which will be returned.
+and will be stored in returned `ParseResult`.
+
+`validator` is used to check whether a command line argument is acceptable or not. If there
+is an argument which is rejected by the given validator, `parse_args` will throw a
+`CliOptionError`. `validator` can be one of:
+
+1. `nothing`
+   - No validation will be done; any value will be accepted
+2. A list of acceptable values
+   - Arguments which matches one of the values will be accepted
+   - Any iterable can be used to specify acceptable values
+   - Arguments will be converted to the specified type and then compared to each element of
+     the list using function `==`
+3. A `Regex`
+   - Arguments which matches the regular expression will be accepted
+   - Pattern matching will be done for unprocessed input string, not type converted one
+4. A custom validator function
+   - It validates command line arguments one by one
+   - It can return a `Bool` which indicates whether a given argument is acceptable or not
+   - It also can return a `String` describing why a given command line argument is NOT
+     acceptable, or an empty `String` if it is acceptable
+
+If you want an option which does not take a command line argument as its value, see
+[`FlagOption`](@ref) and [`CounterOption`](@ref)
 """
 struct Option <: AbstractOption
     names::Vector{String}
     T::Type
+    validator::Any
     default::Any
     help::String
 
     function Option(T::Type, short_name::String, long_name::String = "";
-                    default = nothing, help = "")
+                    default = nothing, validator = nothing, help = "")
         names = long_name == "" ? [short_name] : [short_name, long_name]
         for name ∈ names
             if "" == name
@@ -101,12 +135,14 @@ struct Option <: AbstractOption
                 throw(ArgumentError("Invalid name for Option: \"$name\""))
             end
         end
-        new([n for n ∈ names], T, default, help)
+        new([n for n ∈ names], T, validator, default, help)
     end
 end
 
-function Option(short_name::String, long_name::String = ""; default = nothing, help = "")
-    Option(String, short_name, long_name; default = default, help = help)
+function Option(short_name::String, long_name::String = "";
+                default = nothing, validator = nothing, help = "")
+    Option(String, short_name, long_name;
+           default = default, validator = validator, help = help)
 end
 
 function set_default!(result::ParseResult, o::Option)
@@ -134,7 +170,9 @@ function consume!(result::ParseResult, o::Option, args, i)
     end
     result._counter[o] += 1
 
-    foreach(k -> result._dict[encode(k)] = _parse(o.T, args[i + 1], args[i]), o.names)
+    value = _parse(o.T, args[i + 1], args[i])
+    _validate(o.T, args[i + 1], value, o.validator, args[i])
+    foreach(k -> result._dict[encode(k)] = value, o.names)
     i + 2
 end
 
@@ -640,31 +678,65 @@ end
 # Internals
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
 is_option(names) = any([startswith(name, '-') && 2 ≤ length(name) for name ∈ names])
-function _parse(T, s, optname = "")
+
+function _parse(T, optval::String, optname = "")
     try
-        if applicable(parse, T, s)
-            return parse(T, s)
+        # Use `parse` if available, or use constructor of the type
+        if applicable(parse, T, optval)
+            return parse(T, optval)
         else
-            return T(s)
+            return T(optval)
         end
     catch exc
         # Generate message expressing the error encountered
         if :msg in fieldnames(typeof(exc))
-            emsg = exc.msg
+            reason = exc.msg
         else
             buf = IOBuffer()
             print(buf, exc)
-            emsg = String(take!(buf))
+            reason = String(take!(buf))
         end
 
         # Throw exception with formatted message
-        if optname == ""
-            throw(CliOptionError("Unparsable positional argument of type $T: \"$s\" (" *
-                                 emsg * ")"))
-        else
-            throw(CliOptionError("Unparsable value for $optname of type $T: \"$s\" (" *
-                                 emsg * ")"))
+        buf = IOBuffer()
+        print(buf, "Unparsable ")
+        print(buf, optname == "" ? "positional argument" : "value for $optname")
+        print(buf, " of type $T: ")
+        print(buf, "\"$optval\" ($reason)")
+        msg = String(take!(buf))
+        throw(CliOptionError(msg))
+    end
+end
+
+function _validate(T, optval::String, parsed_value::Any, validator, optname = "")
+    # Validate the parsed result
+    reason = ""
+    if validator isa Function
+        rv = validator(parsed_value)
+        if rv == false || (rv isa String && rv != "")
+            reason = rv isa Bool ? "validation failed" : rv
         end
+    elseif validator isa Regex
+        if match(validator, optval) === nothing
+            reason = "must match for $(validator)"
+        end
+    elseif validator !== nothing
+        if !any(x == parsed_value for x in validator)
+            reason = "must be one of " * join([isa(s, Regex) ? "$s" : "\"$s\""
+                                               for s in validator],
+                                              ", ", " or ")
+        end
+    end
+
+    # Throw if validation failed
+    if reason != ""
+        buf = IOBuffer()
+        print(buf, "Invalid ")
+        print(buf, "value for $optname")  #TODO: in case of positional argument
+        print(buf, T == String ? ": " : " of type $T: ")
+        print(buf, "\"$optval\" ($reason)")
+        msg = String(take!(buf))
+        throw(CliOptionError(msg))
     end
 end
 function print_description(io, names, val, help)
