@@ -4,21 +4,21 @@ using CliOptions
 @testset "println()" begin
     @testset "Option" begin
         spec = CliOptionSpec(
-            Option("-f", "--foo-buzz", help = "an option here."),
+            Option("-f", "--foo-bar", help = "an option here."),
             Option("-p", help = "another option here."),
             program = ""
         )
 
-        @test spec.usage == "Usage: PROGRAM -f FOO_BUZZ -p P"
+        @test spec.usage == "Usage: PROGRAM -f FOO_BAR -p P"
 
         buf = IOBuffer()
         print(buf, spec)
         usage_message = String(take!(buf))
         @test usage_message == """
-                               Usage: PROGRAM -f FOO_BUZZ -p P
+                               Usage: PROGRAM -f FOO_BAR -p P
 
                                Options:
-                                   -f, --foo-buzz FOO_BUZZ
+                                   -f, --foo-bar FOO_BAR
                                                an option here.
 
                                    -p P        another option here.

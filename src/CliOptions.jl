@@ -724,7 +724,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
             if length(kv) == 1
                 push!(arguments, args[i])  # --foo-bar
             elseif length(kv) == 2
-                push!(arguments, kv[1], kv[2])  # --foo-bar=buzz
+                push!(arguments, kv[1], kv[2])  # --foo-bar=baz
             else
                 throw(CliOptionError("Unrecognizable option string: \"$(args[i])\""))
             end

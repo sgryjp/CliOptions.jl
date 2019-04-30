@@ -199,7 +199,7 @@ using CliOptions
         args = parse_args(spec, split("-a foo -b bar"))
         @test args.a == "foo"
         @test args.b == "bar"
-        @test_throws CliOptionError parse_args(spec, split("-a foo -b bar buzz"))
+        @test_throws CliOptionError parse_args(spec, split("-a foo -b bar baz"))
     end
 
     @testset "MutexGroup" begin
@@ -216,8 +216,8 @@ using CliOptions
         args = parse_args(spec, split("-b bar"))
         @test args._dict == Dict("b" => "bar")
         @test_throws CliOptionError parse_args(spec, split("-a foo -b bar"))
-        @test_throws CliOptionError parse_args(spec, split("-a foo -c buzz"))
-        @test_throws CliOptionError parse_args(spec, split("-a foo -b bar -c buzz"))
+        @test_throws CliOptionError parse_args(spec, split("-a foo -c baz"))
+        @test_throws CliOptionError parse_args(spec, split("-a foo -b bar -c baz"))
         @test_throws CliOptionError parse_args(spec, split("-a foo quux"))
     end
 end

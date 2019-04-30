@@ -105,10 +105,10 @@ using CliOptions
         end
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["-a", "buzz"], 1)
+                CliOptions.consume!(result, option, ["-a", "baz"], 1)
             catch ex
                 @test ex isa CliOptionError
-                @test occursin("buzz", ex.msg)
+                @test occursin("baz", ex.msg)
                 @test occursin("must be one of", ex.msg)
                 @test occursin("foo", ex.msg)
                 @test occursin("bar", ex.msg)
@@ -144,16 +144,16 @@ using CliOptions
     end
 
     @testset "consume!(::Option); validator, Regex" begin
-        option = Option("-a", validator = Regex("buz+"))
+        option = Option("-a", validator = Regex("qu+x"))
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a", "buzz"], 1)
+            next_index = CliOptions.consume!(result, option, ["-a", "qux"], 1)
             @test next_index == 3
-            @test result.a == "buzz"
+            @test result.a == "qux"
         end
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a", "buz"], 1)
+            next_index = CliOptions.consume!(result, option, ["-a", "quux"], 1)
             @test next_index == 3
-            @test result.a == "buz"
+            @test result.a == "quux"
         end
         let result = CliOptions.ParseResult()
             try
@@ -162,7 +162,7 @@ using CliOptions
                 @test ex isa CliOptionError
                 @test occursin("foo", ex.msg)
                 @test occursin("must match for", ex.msg)
-                @test occursin("buz+", ex.msg)
+                @test occursin("qu+x", ex.msg)
             end
         end
     end
