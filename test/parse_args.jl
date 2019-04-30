@@ -2,8 +2,8 @@ using Test
 using CliOptions
 
 @testset "parse_args()" begin
-    @testset "reparsing" begin
-        let spec = CliOptionSpec(Option("-n", "--num-workers"), FlagOption("-i"))
+    let spec = CliOptionSpec(Option("-n", "--num-workers"), FlagOption("-i"))
+        @testset "`-ab` to `-a -b`" begin
             args = parse_args(spec, ["-i", "-n", "3"])
             @test args.i == true
             @test args.n == "3"
@@ -13,7 +13,8 @@ using CliOptions
             @test args.n == "3"
 
             @test_throws CliOptionError parse_args(spec, ["-ni", "3"])
-
+        end
+        @testset "`--foo=bar` to `--foo bar`" begin
             args = parse_args(spec, ["--num-workers", "3"])
             @test args.i == false
             @test args.n == "3"
@@ -22,33 +23,6 @@ using CliOptions
             @test args.i == false
             @test args.n == "3"
         end
-    end
-
-    @testset "Mixed options" begin
-        spec = CliOptionSpec(
-            Option("-n", "--num-workers"),
-            FlagOption("-i", "--ignore-case", negators = ["--case-sensitive"]),
-            Positional("filename"),
-        )
-        args = parse_args(spec, ["-n", "3", "test.db"])
-        @test args isa CliOptions.ParseResult
-        @test args._dict["n"] == "3"
-        @test args._dict["num_workers"] == "3"
-        @test args._dict["ignore_case"] == false
-        @test args._dict["case_sensitive"] == true
-        @test args._dict["filename"] == "test.db"
-        @test args["n"] == "3"
-        @test args["num_workers"] == "3"
-        @test args["ignore_case"] == false
-        @test args["case_sensitive"] == true
-        @test args["filename"] == "test.db"
-        @test args.n == "3"
-        @test args.num_workers == "3"
-        @test args.ignore_case == false
-        @test args.case_sensitive == true
-        @test args.filename == "test.db"
-
-        @test_throws CliOptionError parse_args(spec, ["test.db", "test.txt"])
     end
 
     @testset "Option" begin
@@ -65,20 +39,20 @@ using CliOptions
 
         @testset "omittable" begin
             spec = CliOptionSpec(
-                Option("-a"; default = "foo"),
+                Option("-a"; default = missing),
             )
             args = parse_args(spec, String[])
-            @test args.a == "foo"
+            @test ismissing(args.a)
         end
     end
 
     @testset "FlagOption" begin  #TODO: 背反
-        spec = CliOptionSpec(FlagOption("-a"; negators = ["-b"]), )
-        args = parse_args(spec, split("-a", " "))
+        spec = CliOptionSpec(FlagOption("-a"; negators = ["-b"]))
+        args = parse_args(spec, ["-a"])
         @test args.a == true
         @test args.b == false
 
-        args = parse_args(spec, split("-b", ' '))
+        args = parse_args(spec, ["-b"])
         @test args.a == false
         @test args.b == true
 

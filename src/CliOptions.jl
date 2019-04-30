@@ -92,6 +92,13 @@ option notations are supported:
 If `type` parameter is set, option values will be converted to the type inside `parse_args`
 and will be stored in returned `ParseResult`.
 
+`default` parameter controls behavior of `parse_args` when the option is not found in
+command line arguments. If `default` is `nothing`, `parse_args` will throw a
+`CliOptionError`. If `default` is NOT `nothing`, it will be used as the option's value.
+Note that if you want to allow omitting the option but there is no good default value,
+consider using `missing` as default value *(NOTE: this `missing` is not "statistically
+missing"... isn't there better way?)*.
+
 `validator` is used to check whether a command line argument is acceptable or not. If there
 is an argument which is rejected by the given validator, [`parse_args`](@ref) function will
 throw a `CliOptionError`. `validator` can be one of:
