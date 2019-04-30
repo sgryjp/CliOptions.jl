@@ -93,8 +93,8 @@ If `type` parameter is set, option values will be converted to the type inside `
 and will be stored in returned `ParseResult`.
 
 `validator` is used to check whether a command line argument is acceptable or not. If there
-is an argument which is rejected by the given validator, `parse_args` will throw a
-`CliOptionError`. `validator` can be one of:
+is an argument which is rejected by the given validator, [`parse_args`](@ref) function will
+throw a `CliOptionError`. `validator` can be one of:
 
 1. `nothing`
    - No validation will be done; any value will be accepted
@@ -207,7 +207,7 @@ end
 
 """
     FlagOption(short_name::String, long_name::String = "";
-               negators::Union{String,Vector{String}} = "",
+               negators::Union{String,Vector{String}} = String[],
                help = "",
                negator_help = "")
 
@@ -401,21 +401,26 @@ end
 
 """
     Positional([type=String,] singular_name, plural_name = "";
-               multiple = false,
-               default = nothing)
+               multiple = false, validator = nothing,
+               default = nothing, help = "")
 
 `Positional` represents a command line argument which are not an option name nor an option
 value.
+
+`validator` is used to check whether a command line argument is acceptable or not. See
+[Option](@ref) for more detail.
 """
 struct Positional <: AbstractOption
     names::Vector{String}
     T::Type
     multiple::Bool
+    validator::Any
     default::Any
     help::String
 
     function Positional(T::Type, singular_name, plural_name = "";
                         multiple = false,
+                        validator = nothing,
                         default::Any = nothing,
                         help::String = "")
         if singular_name == ""
@@ -429,19 +434,20 @@ struct Positional <: AbstractOption
         end
 
         if plural_name == ""
-            return new([singular_name], T, multiple, default, help)
+            return new([singular_name], T, multiple, validator, default, help)
         else
-            return new([singular_name, plural_name], T, multiple, default, help)
+            return new([singular_name, plural_name], T, multiple, validator, default, help)
         end
     end
 end
 
 function Positional(singular_name, plural_name = "";
                     multiple = false,
+                    validator = nothing,
                     default::Any = nothing,
                     help::String = "")
     Positional(String, singular_name, plural_name;
-               multiple = multiple, default = default, help = help)
+               multiple = multiple, validator = validator, default = default, help = help)
 end
 
 function set_default!(result::ParseResult, o::Positional)
@@ -463,10 +469,14 @@ function consume!(result::ParseResult, o::Positional, args, i)
     # Determine value and update result
     if o.multiple
         values = [_parse(o.T, a) for a in args[i:end]]
+        for (v, arg) in zip(values, args[i:end])
+            _validate(o.T, arg, v, o.validator)
+        end
         foreach(k -> result._dict[encode(k)] = values, o.names)
         return i + length(values)
     else
         value = _parse(o.T, args[i])
+        _validate(o.T, args[i], value, o.validator)
         foreach(k -> result._dict[encode(k)] = value, o.names)
         return i + 1
     end

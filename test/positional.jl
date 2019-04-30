@@ -108,6 +108,186 @@ using CliOptions: consume!
                 @test_throws CliOptionError consume!(result, option, ["not_a_date"], 1)
             end
         end
+
+        @testset "validator, Vector{String}" begin
+            option = Positional("name", "names", validator = ["foo", "bar"], multiple = true)
+            let result = CliOptions.ParseResult()
+                next_index = consume!(result, option, ["foo", "bar"], 1)
+                @test next_index == 3
+                @test result.names == ["foo", "bar"]
+            end
+
+            option = Positional("name", validator = ["foo", "bar"])
+            let result = CliOptions.ParseResult()
+                next_index = consume!(result, option, ["foo"], 1)
+                @test next_index == 2
+                @test result.name == "foo"
+            end
+            let result = CliOptions.ParseResult()
+                next_index = consume!(result, option, ["bar"], 1)
+                @test next_index == 2
+                @test result.name == "bar"
+            end
+            let result = CliOptions.ParseResult()
+                try
+                    CliOptions.consume!(result, option, ["baz"], 1)
+                catch ex
+                    @test ex isa CliOptionError
+                    @test occursin("baz", ex.msg)
+                    @test occursin("must be one of", ex.msg)
+                    @test occursin("foo", ex.msg)
+                    @test occursin("bar", ex.msg)
+                end
+            end
+        end
+
+        @testset "validator, Tuple{Vararg{Int}}" begin
+            option = Positional(Int, "number", "numbers", validator = (7, 13), multiple = true)
+            let result = CliOptions.ParseResult()
+                next_index = CliOptions.consume!(result, option, ["7", "13"], 1)
+                @test next_index == 3
+                @test result.numbers isa Vector{Int}
+                @test result.numbers == [7, 13]
+            end
+            option = Positional(Int, "number", validator = (7, 13))
+            let result = CliOptions.ParseResult()
+                next_index = CliOptions.consume!(result, option, ["7"], 1)
+                @test next_index == 2
+                @test result.number isa Int
+                @test result.number == 7
+            end
+            let result = CliOptions.ParseResult()
+                next_index = CliOptions.consume!(result, option, ["13"], 1)
+                @test next_index == 2
+                @test result.number isa Int
+                @test result.number == 13
+            end
+            let result = CliOptions.ParseResult()
+                try
+                    CliOptions.consume!(result, option, ["9"], 1)
+                catch ex
+                    @test ex isa CliOptionError
+                    @test occursin("9", ex.msg)
+                    @test occursin("must be one of", ex.msg)
+                    @test occursin("7", ex.msg)
+                    @test occursin("13", ex.msg)
+                end
+            end
+        end
+
+        @testset "validator, Regex" begin
+            option = Positional("name", "names", validator = Regex("qu+x"), multiple = true)
+            let result = CliOptions.ParseResult()
+                next_index = CliOptions.consume!(result, option, ["qux", "quux"], 1)
+                @test next_index == 3
+                @test result.names == ["qux", "quux"]
+            end
+            option = Positional("name", validator = Regex("qu+x"))
+            let result = CliOptions.ParseResult()
+                next_index = CliOptions.consume!(result, option, ["qux"], 1)
+                @test next_index == 2
+                @test result.name == "qux"
+            end
+            let result = CliOptions.ParseResult()
+                next_index = CliOptions.consume!(result, option, ["quux"], 1)
+                @test next_index == 2
+                @test result.name == "quux"
+            end
+            let result = CliOptions.ParseResult()
+                try
+                    CliOptions.consume!(result, option, ["foo"], 1)
+                catch ex
+                    @test ex isa CliOptionError
+                    @test occursin("foo", ex.msg)
+                    @test occursin("must match for", ex.msg)
+                    @test occursin("qu+x", ex.msg)
+                end
+            end
+        end
+
+        @testset "validator, String -> Bool" begin
+            f = s -> startswith(s, "foo")
+            g = n -> iseven(n)
+
+            option = Positional("name", "names", validator = f, multiple = true)
+            let result = CliOptions.ParseResult()
+                next_index = CliOptions.consume!(result, option, ["foo", "foobar"], 1)
+                @test next_index == 3
+                @test result.names == ["foo", "foobar"]
+            end
+            option = Positional("name", validator = f)
+            let result = CliOptions.ParseResult()
+                next_index = CliOptions.consume!(result, option, ["foo"], 1)
+                @test next_index == 2
+                @test result.name == "foo"
+            end
+
+            # String
+            let result = CliOptions.ParseResult()
+                try
+                    CliOptions.consume!(result, option, ["bar"], 1)
+                catch ex
+                    @test ex isa CliOptionError
+                    @test occursin("bar", ex.msg)
+                    @test occursin("validation failed", ex.msg)
+                end
+            end
+
+            # non-String
+            option = Positional(Int8, "name", validator = g)
+            let result = CliOptions.ParseResult()
+                try
+                    CliOptions.consume!(result, option, ["7"], 1)
+                catch ex
+                    @test ex isa CliOptionError
+                    @test occursin("Int8", ex.msg)
+                    @test occursin("7", ex.msg)
+                    @test occursin("validation failed", ex.msg)
+                end
+            end
+        end
+
+        @testset "validator, String -> String" begin
+            f = s -> startswith(s, "foo") ? "" : "It's not foo"
+            g = n -> iseven(n) ? "" : "must be even"
+
+            option = Positional("name", "names", validator = f, multiple = true)
+            let result = CliOptions.ParseResult()
+                next_index = CliOptions.consume!(result, option, ["foo", "foobar"], 1)
+                @test next_index == 3
+                @test result.names == ["foo", "foobar"]
+            end
+            option = Positional("name", validator = f)
+            let result = CliOptions.ParseResult()
+                next_index = CliOptions.consume!(result, option, ["foo"], 1)
+                @test next_index == 2
+                @test result.name == "foo"
+            end
+
+            # String
+            let result = CliOptions.ParseResult()
+                try
+                    CliOptions.consume!(result, option, ["bar"], 1)
+                catch ex
+                    @test ex isa CliOptionError
+                    @test occursin("bar", ex.msg)
+                    @test occursin("It's not foo", ex.msg)
+                end
+            end
+
+            # non-String
+            option = Positional(Int8, "name", validator = g)
+            let result = CliOptions.ParseResult()
+                try
+                    CliOptions.consume!(result, option, ["7"], 1)
+                catch ex
+                    @test ex isa CliOptionError
+                    @test occursin("Int8", ex.msg)
+                    @test occursin("7", ex.msg)
+                    @test occursin("must be even", ex.msg)
+                end
+            end
+        end
     end
 
     @testset "post_parse_action!(::Positional)" begin
