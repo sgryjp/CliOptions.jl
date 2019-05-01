@@ -154,14 +154,7 @@ struct Option <: AbstractOption
                     default = nothing, validator = nothing, help = "")
         names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
         for name ∈ names
-            if "" == name
-                throw(ArgumentError("Name of an Option must not be empty"))
-            elseif name[1] != '-'
-                throw(ArgumentError("Name of an Option must start with a hyphen: " *
-                                    name))
-            elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
-                throw(ArgumentError("Invalid name for Option: \"$name\""))
-            end
+            _is_valid_option_or_throw(Option, name)
         end
         new([n for n ∈ names], T, validator, default, help)
     end
@@ -256,14 +249,7 @@ struct FlagOption <: AbstractOption
             negators = [negators]
         end
         for name in unique(vcat(collect(names), negators))
-            if name == ""
-                throw(ArgumentError("Name of a FlagOption must not be empty"))
-            elseif name[1] != '-'
-                throw(ArgumentError("Name of a FlagOption must start with a hyphen:" *
-                                    " \"$name\""))
-            elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
-                throw(ArgumentError("Invalid name for FlagOption: \"$name\""))
-            end
+            _is_valid_option_or_throw(FlagOption, name)
         end
         if negator_help == ""
             negator_help = "Negate usage of " * names[1] * " option"
@@ -352,14 +338,7 @@ struct CounterOption <: AbstractOption
             decrementers = [decrementers]
         end
         for name in unique(vcat(collect(names), decrementers))
-            if name == ""
-                throw(ArgumentError("Name of a CounterOption must not be empty"))
-            elseif name[1] != '-'
-                throw(ArgumentError("Name of a CounterOption must start with a hyphen:" *
-                                    " \"$name\""))
-            elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
-                throw(ArgumentError("Invalid name for CounterOption: \"$name\""))
-            end
+            _is_valid_option_or_throw(CounterOption, name)
         end
         if !(T <: Signed)
             throw(ArgumentError("Type of a CounterOption must be a subtype of Signed:" *
@@ -783,7 +762,16 @@ end
 
 # Internals
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
-is_option(names) = any([startswith(name, '-') && 2 ≤ length(name) for name ∈ names])
+function _is_valid_option_or_throw(T, name)
+    article(T) = occursin(lowercase("$T"[1]), "aeiou") ? "an" : "a"
+    if "" == name
+        throw(ArgumentError("Name of $(article(T)) $T must not be empty"))
+    elseif name[1] != '-'
+        throw(ArgumentError("Name of $(article(T)) $T must start with a hyphen: \"$name\""))
+    elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
+        throw(ArgumentError("Invalid name for $T: \"$name\""))
+    end
+end
 
 function _parse(T, optval::String, optname = "")
     try
