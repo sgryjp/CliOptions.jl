@@ -234,7 +234,7 @@ end
 
 
 """
-    FlagOption(short_name::String, long_name::String = "";
+    FlagOption(primary_name::String, secondary_name::String = "";
                negators::Union{String,Vector{String}} = String[],
                help = "",
                negator_help = "")
@@ -248,10 +248,10 @@ struct FlagOption <: AbstractOption
     help::String
     negator_help::String
 
-    function FlagOption(short_name::String, long_name::String = "";
+    function FlagOption(primary_name::String, secondary_name::String = "";
                         negators::Union{String,Vector{String}} = String[],
                         help = "", negator_help = "")
-        names = long_name == "" ? [short_name] : [short_name, long_name]
+        names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
         if negators isa String
             negators = [negators]
         end
@@ -325,7 +325,7 @@ end
 
 
 """
-    CounterOption([type=Int,] short_name::String, long_name::String = "";
+    CounterOption([type=Int,] primary_name::String, secondary_name::String = "";
                   decrementers::Union{String,Vector{String}} = String[],
                   default::Signed = 0,
                   help::String = "",
@@ -342,12 +342,12 @@ struct CounterOption <: AbstractOption
     help::String
     decrementer_help::String
 
-    function CounterOption(T::Type, short_name::String, long_name::String = "";
+    function CounterOption(T::Type, primary_name::String, secondary_name::String = "";
                            decrementers::Union{String,Vector{String}} = String[],
                            default::Signed = 0,
                            help::String = "",
                            decrementer_help::String = "")
-        names = long_name == "" ? [short_name] : [short_name, long_name]
+        names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
         if decrementers isa String
             decrementers = [decrementers]
         end
@@ -372,12 +372,12 @@ struct CounterOption <: AbstractOption
             decrementer_help)
     end
 end
-function CounterOption(short_name::String, long_name::String = "";
+function CounterOption(primary_name::String, secondary_name::String = "";
                        decrementers::Union{String,Vector{String}} = String[],
                        default::Signed = 0,
                        help::String = "",
                        decrementer_help::String = "")
-    CounterOption(Int, short_name, long_name;
+    CounterOption(Int, primary_name, secondary_name;
                   decrementers = decrementers, default = default, help = help,
                   decrementer_help = decrementer_help)
 end
