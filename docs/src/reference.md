@@ -1,42 +1,82 @@
 # API Reference
 
-## Specification of command line options
+```@contents
+Pages = ["reference.md"]
+```
+
+# Defining command line option spec.
+
+## `CliOptionSpec`
 
 ```@docs
 CliOptionSpec
 ```
 
-## Parse function
+## `Option`
 
 ```@docs
-parse_args
+Option
 ```
 
-## Parse result
+## `FlagOption`
 
 ```@docs
-CliOptions.ParseResult
+FlagOption
 ```
 
-## Option types
-
-### Abstract supertype
+## `CounterOption`
 
 ```@docs
-AbstractOption
+CounterOption
 ```
 
-### Option groups
+## `Positional`
+
+```@docs
+Positional
+```
+
+## `OptionGroup`
 
 ```@docs
 OptionGroup
 ```
 
-### Concrete options
+## `MutexGroup`
 
 ```@docs
-Option
-FlagOption
-CounterOption
-Positional
+MutexGroup
+```
+
+# Parsing arguments
+
+## `parse_args`
+
+```@docs
+parse_args
+```
+
+## `ParseResult`
+
+```@docs
+CliOptions.ParseResult
+```
+
+# Error
+
+## `CliOptionError`
+```@docs
+CliOptionError
+```
+
+# Internal types
+
+## `AbstractOption`
+```@docs
+CliOptions.AbstractOption
+```
+
+## `AbstractOptionGroup`
+```@docs
+CliOptions.AbstractOptionGroup
 ```

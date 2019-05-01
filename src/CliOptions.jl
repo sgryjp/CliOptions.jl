@@ -2,10 +2,10 @@ module CliOptions
 
 
 """
-    CliOptionError
+    CliOptionError(msg::String)
 
-An error occurred inside CliOptions module. Detailed error message can be retrieved by `msg`
-field.
+An error occurred inside `CliOptions` module. Message describing the error is available in
+the `msg` field.
 """
 struct CliOptionError <: Exception
     msg::String
@@ -24,8 +24,8 @@ Abstract supertype representing a command line option. Concrete subtypes are:
 - [`CounterOption`](@ref) ... an option of which number of usage becomes its integer value
 - [`Positional`](@ref) ... an argument which is not an option
 
-Note that a group of options represented with `AbstractOptionGroup` is also considered as
-an `AbstractOption` so it can be used to construct `CliOptionSpec`.
+Note that a group of options represented with `AbstractOptionGroup` is also an
+`AbstractOption` so it can be used to construct `CliOptionSpec`.
 """
 abstract type AbstractOption end
 
@@ -52,9 +52,12 @@ end
 
 
 """
-    ParseResult
+    ParseResult()
 
-Dict-like object holding parsing result of command line options.
+Dictionary like object holding parsing result of command line options. [`parse_args`](@ref)
+function always returns a value of this type. See example of the function.
+
+This type is not exported.
 """
 struct ParseResult
     _dict
@@ -84,7 +87,7 @@ end
 
 
 """
-    Option([type=String,] short_name::String, long_name::String = "";
+    Option([type=String,] primary_name::String, secondary_name::String = "";
            default = nothing, validator = nothing, help = "")
 
 Type representing a command line option whose value is a following argument. Two forms of
@@ -99,6 +102,13 @@ option notations are supported:
      1. `--foo-bar value`; a following command line argument becomes the option's value
      2. `--foo-bar=value`; characters after an equal sign following the option name becomes
         the option's value
+
+An Option can have two names. `primary_name` is typically a short form notation and is also
+used to express the option in a usage message or error messages. `secondary_name` is
+typically a long form notation and is also used to generate a value name in a usage message.
+For example, if names of an option are `-n` and `--foo-bar`, it will appear in a usage
+message as `-n FOO_BAR`. If you want to define an option which have only a long form
+notation, specify it as `primary_name` and omit `secondary_name`.
 
 If `type` parameter is set, option values will be converted to the type inside `parse_args`
 and will be stored in returned `ParseResult`.
@@ -140,9 +150,9 @@ struct Option <: AbstractOption
     default::Any
     help::String
 
-    function Option(T::Type, short_name::String, long_name::String = "";
+    function Option(T::Type, primary_name::String, secondary_name::String = "";
                     default = nothing, validator = nothing, help = "")
-        names = long_name == "" ? [short_name] : [short_name, long_name]
+        names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
         for name ∈ names
             if "" == name
                 throw(ArgumentError("Name of an Option must not be empty"))
@@ -157,9 +167,9 @@ struct Option <: AbstractOption
     end
 end
 
-function Option(short_name::String, long_name::String = "";
+function Option(primary_name::String, secondary_name::String = "";
                 default = nothing, validator = nothing, help = "")
-    Option(String, short_name, long_name;
+    Option(String, primary_name, secondary_name;
            default = default, validator = validator, help = help)
 end
 
@@ -848,15 +858,14 @@ function print_description(io, names, val, help)
 end
 
 
-export AbstractOption,
-       CliOptionError,
-       CliOptionSpec,
-       CounterOption,
-       FlagOption,
+export CliOptionSpec,
        Option,
+       FlagOption,
+       CounterOption,
+       Positional,
        OptionGroup,
        MutexGroup,
-       Positional,
-       parse_args
+       parse_args,
+       CliOptionError
 
 end # module
