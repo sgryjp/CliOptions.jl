@@ -36,8 +36,19 @@ abstract type AbstractOption end
 Abstract type representing a group of command line options. Concrete subtypes are:
 
 - [`OptionGroup`](@ref)
+- [`MutexGroup`](@ref)
 """
 abstract type AbstractOptionGroup <: AbstractOption end
+
+Base.length(o::AbstractOptionGroup) = length(o.options)
+
+function Base.iterate(o::AbstractOptionGroup)
+    1 ≤ length(o.options) ? (o.options[1], 2) : nothing
+end
+
+function Base.iterate(o::AbstractOptionGroup, state)
+    state ≤ length(o.options) ? (o.options[state], state+1) : nothing
+end
 
 
 """
@@ -567,14 +578,6 @@ function print_description(io::IO, o::OptionGroup)
     end
 end
 
-function Base.iterate(o::OptionGroup)
-    1 ≤ length(o.options) ? (o.options[1], 2) : nothing
-end
-
-function Base.iterate(o::OptionGroup, state)
-    state ≤ length(o.options) ? (o.options[state], state+1) : nothing
-end
-
 
 """
     MutexGroup(name::String, options::AbstractOption...)
@@ -641,14 +644,6 @@ function print_description(io::IO, o::MutexGroup)  # Same as from OptionGroup
     for option in o.options
         print_description(io, option)
     end
-end
-
-function Base.iterate(o::MutexGroup)  # Same as from OptionGroup
-    1 ≤ length(o.options) ? (o.options[1], 2) : nothing
-end
-
-function Base.iterate(o::MutexGroup, state)  # Same as from OptionGroup
-    state ≤ length(o.options) ? (o.options[state], state+1) : nothing
 end
 
 

@@ -5,6 +5,7 @@ sorted_keys = sort ∘ collect ∘ keys
 
 tests = [
     "internals.jl",
+    "abstractoptiongroup.jl",
     "parseresult.jl",
     "option.jl",
     "flagoption.jl",
