@@ -1,3 +1,3 @@
 @pushd "%~dp0\docs"
-@julia make.jl
+@julia --color=yes make.jl
 @popd
