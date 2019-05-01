@@ -302,6 +302,8 @@ function consume!(result::ParseResult, o::FlagOption, args, i)
     i + 1
 end
 
+post_parse_action!(result, o::FlagOption) = nothing
+
 function to_usage_tokens(o::FlagOption)
     latter_part = 1 ≤ length(o.negators) ? " | " * o.negators[1] : ""
     ["[" * o.names[1] * latter_part * "]"]
@@ -406,6 +408,8 @@ function consume!(result::ParseResult, o::CounterOption, args, i)
     foreach(k -> result._dict[encode(k)] = value, o.names)
     i + 1
 end
+
+post_parse_action!(result, o::CounterOption) = nothing
 
 function to_usage_tokens(o::CounterOption)
     latter_part = 1 ≤ length(o.decrementers) ? " | " * o.decrementers[1] : ""
@@ -761,9 +765,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
 
     # Take care of omitted options
     for option ∈ (o for o in spec.root.options if get(result._counter, o, 0) ≤ 0)
-        if applicable(post_parse_action!, result, option)
-            post_parse_action!(result, option)
-        end
+        post_parse_action!(result, option)
     end
 
     result
