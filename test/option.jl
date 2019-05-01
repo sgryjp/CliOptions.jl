@@ -85,7 +85,7 @@ using CliOptions
     end
 
     @testset "consume!(::Option); type, inconvertible" begin
-        let option = Option(AbstractOption, "-a")
+        let option = Option(CliOptions.AbstractOption, "-a")
             result = CliOptions.ParseResult()
             @test_throws CliOptionError CliOptions.consume!(result, option, ["-a", "b"], 1)
         end
