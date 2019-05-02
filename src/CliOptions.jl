@@ -719,8 +719,8 @@ patterns: ["*.log"]
 function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParseResult()
 
-    # Reparsing argument list
-    arguments = String[]
+    # Normalize argument list
+    arguments = AbstractString[]
     for i = 1:length(args)
         if !startswith(args[i], '-')
             push!(arguments, args[i])  # -a
@@ -773,7 +773,7 @@ function _is_valid_option_or_throw(T, name)
     end
 end
 
-function _parse(T, optval::String, optname = "")
+function _parse(T, optval::AbstractString, optname = "")
     try
         # Use `parse` if available, or use constructor of the type
         if applicable(parse, T, optval)
@@ -802,7 +802,7 @@ function _parse(T, optval::String, optname = "")
     end
 end
 
-function _validate(T, optval::String, parsed_value::Any, validator, optname = "")
+function _validate(T, optval::AbstractString, parsed_value::Any, validator, optname = "")
     # Validate the parsed result
     reason = ""
     if validator isa Function

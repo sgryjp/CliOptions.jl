@@ -2,6 +2,23 @@ using Test
 using CliOptions
 
 @testset "parse_args()" begin
+    @testset "type of args; $(typeof(v))" for v in [
+        ["-abc", "foo", "bar"],
+        ("-abc", "foo", "bar"),
+        split("-abc foo bar"),
+    ]
+        args = v
+        spec = CliOptionSpec(FlagOption("-a"),
+                             CounterOption("-b"),
+                             Option("-c"),
+                             Positional("d"))
+        result = parse_args(spec, args)
+        @test result.a == true
+        @test result.b == 1
+        @test result.c == "foo"
+        @test result.d == "bar"
+    end
+
     let spec = CliOptionSpec(Option("-n", "--num-workers"), FlagOption("-i"))
         @testset "`-ab` to `-a -b`" begin
             args = parse_args(spec, ["-i", "-n", "3"])
