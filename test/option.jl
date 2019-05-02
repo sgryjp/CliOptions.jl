@@ -18,6 +18,16 @@ using CliOptions
         @test Option(UInt32, "-a").T == UInt32
     end
 
+    @testset "show(::Option); $(join(v[1],','))" for v in [
+        (["-a"], "Option(:a)"),
+        (["-a", "--foo-bar"], "Option(:a,:foo_bar)"),
+    ]
+        names, expected_repr = v
+        result = CliOptions.ParseResult()
+        option = Option(names...)
+        @test repr(option) == expected_repr
+    end
+
     @testset "consume!(::Option)" begin
         option = Option("-d", "--depth")
         let result = CliOptions.ParseResult()

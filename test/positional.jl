@@ -30,6 +30,16 @@ using CliOptions: consume!
         @test option.default == 42
     end
 
+    @testset "show(::Positional); $(join(v[1],','))" for v in [
+        (["file"], "Positional(:file)"),
+        (["file", "files"], "Positional(:file,:files)"),
+    ]
+        names, expected_repr = v
+        result = CliOptions.ParseResult()
+        option = Positional(names...)
+        @test repr(option) == expected_repr
+    end
+
     @testset "consume(::Positional); empty args" begin
         let result = CliOptions.ParseResult()
             option = Positional("file")

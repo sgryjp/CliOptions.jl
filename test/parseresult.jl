@@ -5,17 +5,25 @@ using CliOptions
     let result = CliOptions.ParseResult()
         result._dict["foo"] = "FOO"
         result._dict["bar"] = "BAR"
+
+        @testset "show(::ParseResult)" begin
+            @test repr(result) == "CliOptions.ParseResult(:bar,:foo)"
+        end
+
         @testset "getindex; Symbol" begin
             @test result[:foo] == "FOO"
             @test result[:bar] == "BAR"
         end
+
         @testset "getindex; String" begin
             @test result["foo"] == "FOO"
             @test result["bar"] == "BAR"
         end
+
         @testset "propertynames" begin
             @test sort(propertynames(result)) == [:_counter, :_dict, :bar, :foo]
         end
+
         @testset "getproperty" begin
             @test getproperty(result, :_dict) !== nothing
             @test getproperty(result, :_counter) !== nothing

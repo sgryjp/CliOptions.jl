@@ -29,6 +29,11 @@ Note that a group of options represented with `AbstractOptionGroup` is also an
 """
 abstract type AbstractOption end
 
+function Base.show(io::IO, x::AbstractOption)
+    print(io, typeof(x), "(", join([":" * encode(name) for name in x.names], ','), ")")
+end
+Base.show(x::AbstractOption) = show(stdout, x)
+
 
 """
     AbstractOptionGroup
@@ -39,6 +44,11 @@ Abstract type representing a group of command line options. Concrete subtypes ar
 - [`MutexGroup`](@ref)
 """
 abstract type AbstractOptionGroup <: AbstractOption end
+
+function Base.show(io::IO, x::AbstractOptionGroup)
+    print(io, typeof(x), "(", join([repr(o) for o in x], ','), ")")
+end
+Base.show(x::AbstractOptionGroup) = show(stdout, x)
 
 Base.length(o::AbstractOptionGroup) = length(o.options)
 
@@ -65,6 +75,11 @@ struct ParseResult
 
     ParseResult() = new(Dict{String,Any}(),Dict{AbstractOption,Int}())
 end
+
+function Base.show(io::IO, x::ParseResult)
+    print(io, typeof(x), "(", join([":$k" for k in sort(collect(keys(x._dict)))], ','), ")")
+end
+Base.show(x::ParseResult) = show(stdout, x)
 
 function Base.getindex(result::ParseResult, key)
     k = key isa Symbol ? String(key) : key
@@ -519,6 +534,11 @@ end
 function print_description(io::IO, o::Positional)
     print_description(io, [uppercase(n) for n in o.names[1:1]], "", o.help)
 end
+
+function Base.show(io::IO, x::Positional)
+    print(io, typeof(x), "(", join([":$name" for name in x.names], ','), ")")
+end
+Base.show(x::Positional) = show(stdout, x)
 
 
 """

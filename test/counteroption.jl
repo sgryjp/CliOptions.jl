@@ -43,6 +43,16 @@ using CliOptions
         end
     end
 
+    @testset "show(::CounterOption); $(join(v[1],','))" for v in [
+        (["-a"], "CounterOption(:a)"),
+        (["-a", "--foo-bar"], "CounterOption(:a,:foo_bar)"),
+    ]
+        names, expected_repr = v
+        result = CliOptions.ParseResult()
+        option = CounterOption(names...)
+        @test repr(option) == expected_repr
+    end
+
     @testset "consume(::CounterOption)" begin
         option = CounterOption("-v", "--verbose")
 

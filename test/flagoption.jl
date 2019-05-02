@@ -29,6 +29,16 @@ using CliOptions
         @test option.negators == ["-c", "-d"]
     end
 
+    @testset "show(::FlagOption); $(join(v[1],','))" for v in [
+        (["-a"], "FlagOption(:a)"),
+        (["-a", "--foo-bar"], "FlagOption(:a,:foo_bar)"),
+    ]
+        names, expected_repr = v
+        result = CliOptions.ParseResult()
+        option = FlagOption(names...)
+        @test repr(option) == expected_repr
+    end
+
     @testset "consume(::FlagOption)" begin
         option = FlagOption("-i", "--ignore-case")
 
