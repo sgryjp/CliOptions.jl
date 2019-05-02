@@ -65,7 +65,7 @@ using CliOptions
         end
         let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["v"], 1)
-            @test next_index == -1
+            @test next_index == 0
             @test sorted_keys(result._dict) == []
         end
         let result = CliOptions.ParseResult()
@@ -96,7 +96,7 @@ using CliOptions
         end
         let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["v"], 1)
-            @test next_index == -1
+            @test next_index == 0
             @test sorted_keys(result._dict) == []
         end
         let result = CliOptions.ParseResult()

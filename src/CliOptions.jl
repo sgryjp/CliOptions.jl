@@ -188,7 +188,7 @@ end
 function consume!(result::ParseResult, o::Option, args, i)
     @assert 1 ≤ i ≤ length(args)
     if args[i] ∉ o.names
-        return -1
+        return 0
     end
     if length(args) < i + 1
         throw(CliOptionError("A value is needed for option \"$(args[i])\""))
@@ -202,7 +202,7 @@ function consume!(result::ParseResult, o::Option, args, i)
 
     # Skip if this node is already processed
     if 1 ≤ count
-        return -1
+        return 0
     end
     result._counter[o] += 1
 
@@ -288,7 +288,7 @@ function consume!(result::ParseResult, o::FlagOption, args, i)
         elseif args[i] ∈ o.negators
             value = false
         else
-            return -1
+            return 0
         end
     elseif startswith(args[i], "-")
         @assert length(args[i]) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
@@ -297,10 +297,10 @@ function consume!(result::ParseResult, o::FlagOption, args, i)
         elseif args[i] ∈ o.negators
             value = false
         else
-            return -1
+            return 0
         end
     else
-        return -1
+        return 0
     end
 
     # Update counter
@@ -402,7 +402,7 @@ function consume!(result::ParseResult, o::CounterOption, args, i)
         end
     end
     if diff == 0
-        return -1
+        return 0
     end
     value = o.T(get(result._dict, encode(o.names[1]), 0) + diff)
 
@@ -492,7 +492,7 @@ function consume!(result::ParseResult, o::Positional, args, i)
     count::Int = get(result._counter, o, 0)
     max_nvalues = o.multiple ? Inf : 1
     if max_nvalues ≤ count
-        return -1
+        return 0
     end
     result._counter[o] = count + 1
 
@@ -569,7 +569,7 @@ function consume!(result::ParseResult, o::OptionGroup, args, i)
             return next_index
         end
     end
-    return -1
+    return 0
 end
 
 function post_parse_action!(result, o::OptionGroup)
@@ -620,7 +620,7 @@ function consume!(result::ParseResult, o::MutexGroup, args, i)  # Same as from O
             return next_index
         end
     end
-    return -1
+    return 0
 end
 
 function post_parse_action!(result, o::MutexGroup)
@@ -774,7 +774,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     i = 1
     while i ≤ length(arguments)
         next_index = consume!(result, spec.root, arguments, i)
-        if next_index < 0
+        if next_index ≤ 0
             throw(CliOptionError("Unrecognized argument: \"$(arguments[i])\""))
         end
 

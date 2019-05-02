@@ -35,12 +35,12 @@ using CliOptions
         end
         let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, [""], 1)
-            @test next_index == -1
+            @test next_index == 0
             @test sorted_keys(result._dict) == String[]
         end
         let result = CliOptions.ParseResult()
             next_index = CliOptions.consume!(result, option, ["-a"], 1)
-            @test next_index == -1
+            @test next_index == 0
             @test sorted_keys(result._dict) == String[]
         end
         let result = CliOptions.ParseResult()
