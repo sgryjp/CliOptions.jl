@@ -62,29 +62,19 @@ using CliOptions: consume!
         end
     end
 
-    @testset "consume(::Positional); multiple" begin
-        let result = CliOptions.ParseResult()
-            option = Positional("file", multiple = true)
-            next_index = consume!(result, option, [""], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["file"]
-            @test result.file == [""]
-        end
-        let result = CliOptions.ParseResult()
-            option = Positional("file", "files", multiple = true)
-            next_index = consume!(result, option, ["a"], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["file", "files"]
-            @test result.file == ["a"]
-            @test result.files == ["a"]
-        end
-        let result = CliOptions.ParseResult()
-            option = Positional("file", multiple = true)
-            next_index = consume!(result, option, ["a", "b"], 1)
-            @test next_index == 3
-            @test sorted_keys(result._dict) == ["file"]
-            @test result.file == ["a", "b"]
-        end
+    @testset "consume(::Positional); multiple; $(join(v[1],','))" for v in [
+        ([""], 2, [""]),
+        (["a"], 2, ["a"]),
+        (["a", "b"], 3, ["a", "b"])
+    ]
+        args, expected_next_index, expected_values = v
+        result = CliOptions.ParseResult()
+        option = Positional("file", "files", multiple = true)
+        next_index = consume!(result, option, args, 1)
+        @test sorted_keys(result._dict) == ["file", "files"]
+        @test next_index == expected_next_index
+        @test result.file == expected_values
+        @test result.files == expected_values
     end
 
     @testset "consume(::Positional); type" begin
