@@ -15,7 +15,7 @@ Base.showerror(io::IO, e::CliOptionError) = print(io, "CliOptionError: " * e.msg
 
 
 """
-    AbstractOption
+    CliOptions.AbstractOption
 
 Abstract supertype representing a command line option. Concrete subtypes are:
 
@@ -36,7 +36,7 @@ Base.show(x::AbstractOption) = show(stdout, x)
 
 
 """
-    AbstractOptionGroup
+    CliOptions.AbstractOptionGroup
 
 Abstract type representing a group of command line options. Concrete subtypes are:
 
@@ -62,7 +62,7 @@ end
 
 
 """
-    ParseResult()
+    CliOptions.ParseResult()
 
 Dictionary like object holding parsing result of command line options. [`parse_args`](@ref)
 function always returns a value of this type. See example of the function.
@@ -321,7 +321,9 @@ function to_usage_tokens(o::FlagOption)
 end
 function print_description(io::IO, o::FlagOption)
     print_description(io, o.names, "", o.help)
-    print_description(io, o.negators, "", o.negator_help)
+    if 1 ≤ length(o.negators)
+        print_description(io, o.negators, "", o.negator_help)
+    end
 end
 
 
@@ -421,7 +423,9 @@ function to_usage_tokens(o::CounterOption)
 end
 function print_description(io::IO, o::CounterOption)
     print_description(io, o.names, "", o.help)
-    print_description(io, o.decrementers, "", o.decrementer_help)
+    if 1 ≤ length(o.decrementers)
+        print_description(io, o.decrementers, "", o.decrementer_help)
+    end
 end
 
 
@@ -532,7 +536,7 @@ function to_usage_tokens(o::Positional)
     end
 end
 function print_description(io::IO, o::Positional)
-    print_description(io, [uppercase(n) for n in o.names[1:1]], "", o.help)
+    print_description(io, (uppercase(o.names[1]),), "", o.help)
 end
 
 function Base.show(io::IO, x::Positional)
@@ -667,33 +671,38 @@ A type representing a command line option specification.
 """
 struct CliOptionSpec
     root::OptionGroup
-    usage::String
+    program::String
 
     function CliOptionSpec(options::AbstractOption...; program = PROGRAM_FILE)
         if program == ""
             program = "PROGRAM"
         end
-        usage = "Usage: " * program * " " * join(Iterators.flatten(to_usage_tokens(o)
-                                                                   for o in options),
-                                                 " ")
-        new(OptionGroup(options...), usage)
+        new(OptionGroup(options...), program)
     end
 end
 
-
-"""
-    show([io::IO], spec::CliOptionSpec)
-
-Write fully descriptive usage (help) message to `io`. If you want to print only the first
-line of the usage message, print `CliOptionSpec.usage` instead.
-"""
-function Base.show(io::IO, spec::CliOptionSpec)
-    println(io, spec.usage)
-    println(io)
-    println(io, "Options:")
-    print_description(io, spec.root)
+function Base.show(io::IO, x::CliOptionSpec)
+    print(io, typeof(x), "(", join([repr(o) for o in x.root], ','), ")")
 end
-Base.show(spec::CliOptionSpec) = show(stdout, spec)
+Base.show(x::CliOptionSpec) = show(stdout, x)
+
+
+"""
+    print_usage([io::IO], spec::CliOptionSpec; verbose = true)
+
+Write usage (help) message to `io`. Set `false` to `verbose` if you want to print only the
+first line of the usage message. If `io` is omitted, message will be written `stdout`.
+"""
+function print_usage(io::IO, spec::CliOptionSpec; verbose = true)
+    print(io, "Usage: $(spec.program) ")
+    println(io, join(Iterators.flatten(to_usage_tokens(o) for o in spec.root), " "))
+    if verbose
+        println(io)
+        println(io, "Options:")
+        print_description(io, spec.root)
+    end
+end
+print_usage(spec::CliOptionSpec) = print_usage(stdout, spec)
 
 
 """
@@ -874,6 +883,7 @@ export CliOptionSpec,
        OptionGroup,
        MutexGroup,
        parse_args,
+       print_usage,
        CliOptionError
 
 end # module

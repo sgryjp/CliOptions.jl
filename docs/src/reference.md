@@ -4,7 +4,7 @@
 Pages = ["reference.md"]
 ```
 
-# Defining command line option spec.
+# Defining Command Line Option Spec.
 
 ## `CliOptionSpec`
 
@@ -48,7 +48,7 @@ OptionGroup
 MutexGroup
 ```
 
-# Parsing arguments
+# Parsing Arguments
 
 ## `parse_args`
 
@@ -62,14 +62,19 @@ parse_args
 CliOptions.ParseResult
 ```
 
-# Error
+# Error Handling
+
+## `print_usage`
+```@docs
+print_usage
+```
 
 ## `CliOptionError`
 ```@docs
 CliOptionError
 ```
 
-# Internal types
+# Internal Types
 
 ## `AbstractOption`
 ```@docs

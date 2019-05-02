@@ -1,32 +1,8 @@
 using Test
 using CliOptions
 
-@testset "println()" begin
-    @testset "Option" begin
-        spec = CliOptionSpec(
-            Option("-f", "--foo-bar", help = "an option here."),
-            Option("-p", help = "another option here."),
-            program = ""
-        )
-
-        @test spec.usage == "Usage: PROGRAM -f FOO_BAR -p P"
-
-        buf = IOBuffer()
-        print(buf, spec)
-        usage_message = String(take!(buf))
-        @test usage_message == """
-                               Usage: PROGRAM -f FOO_BAR -p P
-
-                               Options:
-                                   -f, --foo-bar FOO_BAR
-                                               an option here.
-
-                                   -p P        another option here.
-
-                               """
-    end
-
-    @testset "OptionGroup" begin
+@testset "print_usage()" begin
+    @testset "example 1" begin
         spec = CliOptionSpec(
             Option("-w", "--window-function", help = "window function to use"),
             OptionGroup(
@@ -37,26 +13,30 @@ using CliOptions
             Option("-t", help = "dtype (float or int)"),
             program = ""
         )
-
-        @test spec.usage == "Usage: PROGRAM -w WINDOW_FUNCTION -x X -y Y -t T"
+        buf = IOBuffer()
+        print_usage(buf, spec; verbose = false)
+        usage = String(take!(buf))
+        @test usage == """Usage: PROGRAM -w WINDOW_FUNCTION -x X -y Y -t T
+                       """
 
         buf = IOBuffer()
-        print(buf, spec)
-        usage_message = String(take!(buf))
-        @test usage_message == """
-                               Usage: PROGRAM -w WINDOW_FUNCTION -x X -y Y -t T
+        print_usage(buf, spec; verbose = true)
+        usage = String(take!(buf))
+        # print(usage)  # DEBUG
+        @test usage == """
+                       Usage: PROGRAM -w WINDOW_FUNCTION -x X -y Y -t T
 
-                               Options:
-                                   -w, --window-function WINDOW_FUNCTION
-                                               window function to use
+                       Options:
+                           -w, --window-function WINDOW_FUNCTION
+                                       window function to use
 
-                                 Input data:
-                                   -x X        explanatory variables
+                         Input data:
+                           -x X        explanatory variables
 
-                                   -y Y        objective variable
+                           -y Y        objective variable
 
-                                   -t T        dtype (float or int)
+                           -t T        dtype (float or int)
 
-                               """
+                       """
     end
 end
