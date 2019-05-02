@@ -30,9 +30,9 @@ using CliOptions
         spec = CliOptionSpec(
             Option("-w", "--window-function", help = "window function to use"),
             OptionGroup(
-                "Input data",
                 Option("-x", help = "explanatory variables"),
                 Option("-y", help = "objective variable"),
+                name = "Input data",
             ),
             Option("-t", help = "dtype (float or int)"),
             program = ""

@@ -522,7 +522,7 @@ end
 
 
 """
-    OptionGroup(name::String, options::AbstractOption...)
+    OptionGroup(options::AbstractOption...; name::String = "")
 
 `OptionGroup` contains one or more `AbstractOption`s and accepts command line arguments if
 one of the options is accepted. In other word, this is an OR operator for `AbstractOption`s.
@@ -531,7 +531,7 @@ struct OptionGroup <: AbstractOptionGroup
     names::Tuple{String}
     options
 
-    OptionGroup(name::String, options::AbstractOption...) = new((name,), options)
+    OptionGroup(options::AbstractOption...; name::String = "") = new((name,), options)
 end
 
 function set_default!(result::ParseResult, o::OptionGroup)
@@ -573,7 +573,7 @@ end
 
 
 """
-    MutexGroup(name::String, options::AbstractOption...)
+    MutexGroup(options::AbstractOption...; name::String = "")
 
 `MutexGroup` contains one or more `AbstractOption`s and accepts command line arguments only
 if exactly one of the options was accepted.
@@ -582,7 +582,7 @@ struct MutexGroup <: AbstractOptionGroup
     name::String
     options
 
-    MutexGroup(name::String, options::AbstractOption...) = new(name, options)
+    MutexGroup(options::AbstractOption...; name::String = "") = new(name, options)
 end
 
 function set_default!(result::ParseResult, o::MutexGroup)  # Same as from OptionGroup
@@ -656,7 +656,7 @@ struct CliOptionSpec
         usage = "Usage: " * program * " " * join(Iterators.flatten(to_usage_tokens(o)
                                                                    for o in options),
                                                  " ")
-        new(OptionGroup("", options...), usage)
+        new(OptionGroup(options...), usage)
     end
 end
 

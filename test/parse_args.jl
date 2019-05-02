@@ -179,7 +179,7 @@ using CliOptions
 
     @testset "OptionGroup" begin
         spec = CliOptionSpec(
-            OptionGroup("The options",
+            OptionGroup(
                 Option("-a"),
                 Option("-b"),
             ),
@@ -195,7 +195,7 @@ using CliOptions
 
     @testset "MutexGroup" begin
         spec = CliOptionSpec(
-            MutexGroup("The options",
+            MutexGroup(
                 Option("-a"),
                 Option("-b"),
                 Option("-c"),
