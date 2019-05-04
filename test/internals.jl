@@ -41,4 +41,11 @@ using CliOptions: encode
         @test encode("-foo bar") == "foo_bar"
     end
 
+    @testset "CliOptionError" begin
+        let ex = CliOptionError("foo bar")
+            @test occursin(repr(typeof(ex)), repr(ex))
+            @test occursin("foo bar", repr(ex))
+        end
+    end
+
 end
