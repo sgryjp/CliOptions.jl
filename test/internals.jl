@@ -41,10 +41,13 @@ using CliOptions: encode
         @test encode("-foo bar") == "foo_bar"
     end
 
-    @testset "CliOptionError" begin
+    @testset "CliOptionError; showerror" begin
         let ex = CliOptionError("foo bar")
-            @test occursin(repr(typeof(ex)), repr(ex))
-            @test occursin("foo bar", repr(ex))
+            buf = IOBuffer()
+            showerror(buf, ex)
+            msg = String(take!(buf))
+            @test occursin(repr(typeof(ex)), msg)
+            @test occursin("foo bar", msg)
         end
     end
 
