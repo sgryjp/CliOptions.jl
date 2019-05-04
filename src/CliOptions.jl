@@ -498,9 +498,11 @@ function consume!(result::ParseResult, o::Positional, args, i)
 
     # Determine value and update result
     if o.multiple
-        values = [_parse(o.T, a) for a in args[i:end]]
-        for (v, arg) in zip(values, args[i:end])
-            _validate(o.T, arg, v, o.validator)
+        values = Vector{o.T}()
+        for arg in args[i:end]
+            value = _parse(o.T, arg)
+            _validate(o.T, arg, value, o.validator)
+            push!(values, value)
         end
         foreach(k -> result._dict[encode(k)] = values, o.names)
         return i + length(values)
@@ -834,14 +836,27 @@ end
 
 # Internals
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
+function _validate_option_name(name)
+    if "" == name
+        :empty
+    elseif name[1] != '-'
+        :not_hyphen
+    elseif name == "--"
+        :two_hyphens
+    elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
+        :invalid
+    end
+end
+
 function _is_valid_option_or_throw(T, name)
     article(T) = occursin(lowercase("$T"[1]), "aeiou") ? "an" : "a"
-    if "" == name
+    reason = _validate_option_name(name)
+    if reason == :empty
         throw(ArgumentError("Name of $(article(T)) $T must not be empty"))
-    elseif name[1] != '-'
+    elseif reason == :not_hyphen
         throw(ArgumentError("Name of $(article(T)) $T must start with a hyphen: \"$name\""))
-    elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
-        if T == RemainderOption && name == "--"
+    elseif reason in (:two_hyphens, :invalid)
+        if T == RemainderOption && reason == :two_hyphens
             return
         end
         throw(ArgumentError("Invalid name for $T: \"$name\""))
