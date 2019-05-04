@@ -177,6 +177,22 @@ using CliOptions
         end
     end
 
+    @testset "RemainderOption" begin
+        spec = CliOptionSpec(RemainderOption())
+        args = parse_args(spec, String[])
+        @test args._remainders == []
+
+        try
+        args = parse_args(spec, ["a", "-b", "--c"])
+        catch ex
+            @test ex isa CliOptionError
+            @test occuresin("\"a\"", ex.msg)
+        end
+
+        args = parse_args(spec, ["--", "a", "-b", "--c"])
+        @test args._remainders == ["a", "-b", "--c"]
+    end
+
     @testset "OptionGroup" begin
         spec = CliOptionSpec(
             OptionGroup(

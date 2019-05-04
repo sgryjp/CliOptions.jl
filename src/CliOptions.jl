@@ -545,6 +545,49 @@ end
 Base.show(x::Positional) = show(stdout, x)
 
 
+struct RemainderOption <: AbstractOption
+    names::Union{Tuple{AbstractString},Tuple{AbstractString,AbstractString}}
+    help::String
+
+    function RemainderOption(primary_name::AbstractString = "--",
+                             secondary_name::AbstractString = "";
+                             help = "Stop option scanning")
+        names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
+        foreach(name -> _is_valid_option_or_throw(RemainderOption, name), names)
+        replace!(names, "--" => "--_remainders")
+        new(Tuple(names), help)
+    end
+end
+
+set_default!(result::ParseResult, o::RemainderOption) = nothing
+
+function consume!(result::ParseResult, o::RemainderOption, args, i)
+    @assert 1 ≤ i ≤ length(args)
+    @assert "" ∉ o.names
+
+    # Parse arguments
+    values = AbstractString[]
+    for arg in args[i + 1:end]
+        push!(values, arg)
+    end
+    for name in o.names
+        result._dict[encode(name)] = values
+    end
+
+    # Update counter
+    result._counter[o] = get(result._counter, o, 0) + 1
+
+    return length(args) + 1
+end
+
+function post_parse_action!(result, o::RemainderOption)
+    # Set an empty array if not register
+    if get(result._counter, o, 0) < 1
+        foreach(k -> result._dict[encode(k)] = AbstractString[], o.names)
+    end
+end
+
+
 """
     OptionGroup(options::AbstractOption...; name::String = "")
 

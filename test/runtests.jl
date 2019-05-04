@@ -12,6 +12,7 @@ tests = [
     "flagoption.jl",
     "counteroption.jl",
     "positional.jl",
+    "remainderoption.jl",
     "parse_args.jl",
     "usage.jl",
 ]
