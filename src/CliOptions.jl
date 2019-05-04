@@ -841,6 +841,9 @@ function _is_valid_option_or_throw(T, name)
     elseif name[1] != '-'
         throw(ArgumentError("Name of $(article(T)) $T must start with a hyphen: \"$name\""))
     elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
+        if T == RemainderOption && name == "--"
+            return
+        end
         throw(ArgumentError("Invalid name for $T: \"$name\""))
     end
 end
@@ -923,6 +926,7 @@ export CliOptionSpec,
        FlagOption,
        CounterOption,
        Positional,
+       RemainderOption,
        OptionGroup,
        MutexGroup,
        parse_args,
