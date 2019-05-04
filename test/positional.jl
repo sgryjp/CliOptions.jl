@@ -35,7 +35,6 @@ using CliOptions: consume!
         (["file", "files"], "Positional(:file,:files)"),
     ]
         names, expected_repr = v
-        result = CliOptions.ParseResult()
         option = Positional(names...)
         @test repr(option) == expected_repr
     end

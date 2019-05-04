@@ -34,7 +34,6 @@ using CliOptions
         (["-a", "--foo-bar"], "FlagOption(:a,:foo_bar)"),
     ]
         names, expected_repr = v
-        result = CliOptions.ParseResult()
         option = FlagOption(names...)
         @test repr(option) == expected_repr
     end

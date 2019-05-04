@@ -23,7 +23,6 @@ using CliOptions
         (["-a", "--foo-bar"], "Option(:a,:foo_bar)"),
     ]
         names, expected_repr = v
-        result = CliOptions.ParseResult()
         option = Option(names...)
         @test repr(option) == expected_repr
     end
