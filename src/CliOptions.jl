@@ -169,7 +169,7 @@ struct Option <: AbstractOption
                     default = nothing, validator = nothing, help = "")
         names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
         for name ∈ names
-            _is_valid_option_or_throw(Option, name)
+            _validate_option_name(Option, name)
         end
         new([n for n ∈ names], T, validator, default, help)
     end
@@ -213,7 +213,7 @@ function consume!(result::ParseResult, o::Option, args, i)
 end
 
 function post_parse_action!(result, o::Option)
-    # Do nothing if once parsed
+    # Do nothing if it was already parsed
     if 1 ≤ get(result._counter, o, 0)
         return
     end
@@ -264,7 +264,7 @@ struct FlagOption <: AbstractOption
             negators = [negators]
         end
         for name in unique(vcat(collect(names), negators))
-            _is_valid_option_or_throw(FlagOption, name)
+            _validate_option_name(FlagOption, name)
         end
         if negator_help == ""
             negator_help = "Negate usage of " * names[1] * " option"
@@ -355,7 +355,7 @@ struct CounterOption <: AbstractOption
             decrementers = [decrementers]
         end
         for name in unique(vcat(collect(names), decrementers))
-            _is_valid_option_or_throw(CounterOption, name)
+            _validate_option_name(CounterOption, name)
         end
         if !(T <: Signed)
             throw(ArgumentError("Type of a CounterOption must be a subtype of Signed:" *
@@ -515,7 +515,7 @@ function consume!(result::ParseResult, o::Positional, args, i)
 end
 
 function post_parse_action!(result, o::Positional)
-    # Do nothing if once parsed
+    # Do nothing if it was already parsed
     if 1 ≤ get(result._counter, o, 0)
         return
     end
@@ -555,7 +555,7 @@ struct RemainderOption <: AbstractOption
                              secondary_name::AbstractString = "";
                              help = "Stop option scanning")
         names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
-        foreach(name -> _is_valid_option_or_throw(RemainderOption, name), names)
+        foreach(name -> _validate_option_name(RemainderOption, name), names)
         replace!(names, "--" => "--_remainders")
         new(Tuple(names), help)
     end
@@ -836,27 +836,33 @@ end
 
 # Internals
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
-function _validate_option_name(name)
+
+function _check_option_name(name)
     if "" == name
-        :empty
+        return :empty  # An empty string
     elseif name[1] != '-'
-        :not_hyphen
+        return :not_hyphen  # Not starting with a hyphen
     elseif name == "--"
-        :two_hyphens
+        return :two_hyphens  # It's double hyphens
     elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
-        :invalid
+        return :invalid  # At least invalid as a name of an option
     end
+
+    if tryparse(Float64, name) !== nothing
+        return :negative  # It can be a negative number or a name of an option
+    end
+    return :valid  # It is a name of an option
 end
 
-function _is_valid_option_or_throw(T, name)
+function _validate_option_name(T, name)
     article(T) = occursin(lowercase("$T"[1]), "aeiou") ? "an" : "a"
-    reason = _validate_option_name(name)
-    if reason == :empty
+    result = _check_option_name(name)
+    if result == :empty
         throw(ArgumentError("Name of $(article(T)) $T must not be empty"))
-    elseif reason == :not_hyphen
+    elseif result == :not_hyphen
         throw(ArgumentError("Name of $(article(T)) $T must start with a hyphen: \"$name\""))
-    elseif reason in (:two_hyphens, :invalid)
-        if T == RemainderOption && reason == :two_hyphens
+    elseif result in (:two_hyphens, :invalid)
+        if T == RemainderOption && result == :two_hyphens
             return
         end
         throw(ArgumentError("Invalid name for $T: \"$name\""))

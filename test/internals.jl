@@ -3,7 +3,7 @@ using CliOptions: encode
 
 @testset "Internal utilities" begin
 
-    @testset "_is_valid_option_or_throw(); $(v[1])" for v in [
+    @testset "_validate_option_name(); $(v[1])" for v in [
         # valid form
         ("short form", Option, "-a", false, ""),
         ("long form", Option, "--foo-bar", false, ""),
@@ -21,7 +21,7 @@ using CliOptions: encode
         _, T, optval, should_fail, substr = v
         ok = false
         try
-            CliOptions._is_valid_option_or_throw(T, optval)
+            CliOptions._validate_option_name(T, optval)
             ok = true
         catch ex
             @test ex isa ArgumentError
