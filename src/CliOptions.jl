@@ -496,22 +496,20 @@ function consume!(result::ParseResult, o::Positional, args, i)
     end
     result._counter[o] = count + 1
 
-    # Determine value and update result
-    if o.multiple
-        values = Vector{o.T}()
-        for arg in args[i:end]
-            value = _parse(o.T, arg)
-            _validate(o.T, arg, value, o.validator)
-            push!(values, value)
-        end
-        foreach(k -> result._dict[encode(k)] = values, o.names)
-        return i + length(values)
-    else
-        value = _parse(o.T, args[i])
-        _validate(o.T, args[i], value, o.validator)
-        foreach(k -> result._dict[encode(k)] = value, o.names)
-        return i + 1
+    # Scan values to consume
+    values = Vector{o.T}()
+    for arg in args[i:(o.multiple ? length(args) : i)]
+        value = _parse(o.T, arg)
+        _validate(o.T, arg, value, o.validator)
+        push!(values, value)
     end
+
+    # Store parse result
+    for name in o.names
+        result._dict[encode(name)] = o.multiple ? values : values[1]
+    end
+
+    return i + length(values)
 end
 
 function post_parse_action!(result, o::Positional)
