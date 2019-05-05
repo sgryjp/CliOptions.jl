@@ -206,9 +206,10 @@ function consume!(result::ParseResult, o::Option, args, i)
     end
     result._counter[o] += 1
 
-    value = _parse(o.T, args[i + 1], args[i])
-    _validate(o.T, args[i + 1], value, o.validator, args[i])
-    foreach(k -> result._dict[encode(k)] = value, o.names)
+    value = _parse(o.T, args[i + 1], o.validator, args[i])
+    for name in o.names
+        result._dict[encode(name)] = value
+    end
     i + 2
 end
 
@@ -499,9 +500,7 @@ function consume!(result::ParseResult, o::Positional, args, i)
     # Scan values to consume
     values = Vector{o.T}()
     for arg in args[i:(o.multiple ? length(args) : i)]
-        value = _parse(o.T, arg)
-        _validate(o.T, arg, value, o.validator)
-        push!(values, value)
+        push!(values, _parse(o.T, arg, o.validator))
     end
 
     # Store parse result
@@ -867,13 +866,14 @@ function _validate_option_name(T, name)
     end
 end
 
-function _parse(T, optval::AbstractString, optname = "")
+function _parse(T, optval::AbstractString, validator::Any, optname = "")
+    parsed_value::Union{Nothing,T} = nothing
     try
         # Use `parse` if available, or use constructor of the type
         if applicable(parse, T, optval)
-            return parse(T, optval)
+            parsed_value = parse(T, optval)
         else
-            return T(optval)
+            parsed_value = T(optval)
         end
     catch exc
         # Generate message expressing the error encountered
@@ -894,9 +894,7 @@ function _parse(T, optval::AbstractString, optname = "")
         msg = String(take!(buf))
         throw(CliOptionError(msg))
     end
-end
 
-function _validate(T, optval::AbstractString, parsed_value::Any, validator, optname = "")
     # Validate the parsed result
     reason = ""
     if validator isa Function
@@ -926,7 +924,11 @@ function _validate(T, optval::AbstractString, parsed_value::Any, validator, optn
         msg = String(take!(buf))
         throw(CliOptionError(msg))
     end
+
+    # Return validated value
+    parsed_value
 end
+
 function print_description(io, names, val, help)
     heading = join(names, ", ") * (val != "" ? " $val" : "")
     print(io, repeat(" ", 4) * heading)
