@@ -123,57 +123,38 @@ using CliOptions
     end
 
     @testset "Positional" begin
-        @testset "single, required" begin
-            spec = CliOptionSpec(
-                Positional("file", "files"),
-            )
-            @test_throws CliOptionError parse_args(spec, String[])
-            args = parse_args(spec, ["a"])
-            @test args.file == "a"
-            @test args.files == "a"
-            @test_throws CliOptionError parse_args(spec, ["a", "b"])
-        end
+        @testset "$(v[1])" for v in [
+            # single, required
+            ("single, required; \"\"", false, nothing, String[], CliOptionError),
+            ("single, required; \"a\"", false, nothing, ["a"], "a"),
+            ("single, required; \"a b\"", false, nothing, ["a", "b"], CliOptionError),
 
-        @testset "single, omittable" begin
-            spec = CliOptionSpec(
-                Positional("file", "files"; default = "foo.txt"),
-            )
-            args = parse_args(spec, String[])
-            @test args.file == "foo.txt"
-            @test args.files == "foo.txt"
-            @test_throws CliOptionError parse_args(spec, ["a", "b"])
-            args = parse_args(spec, ["a"])
-            @test args.file == "a"
-            @test args.files == "a"
-            @test_throws CliOptionError parse_args(spec, ["a", "b"])
-        end
+            # single, omittable
+            ("single, omittable; \"\"", false, "foo.txt", String[], "foo.txt"),
+            ("single, omittable; \"a\"", false, "foo.txt", ["a"], "a"),
+            ("single, omittable; \"a b\"", false, "foo.txt", ["a", "b"], CliOptionError),
 
-        @testset "multiple, required" begin
-            spec = CliOptionSpec(
-                Positional("file", "files"; multiple = true),
-            )
-            @test_throws CliOptionError parse_args(spec, String[])
-            args = parse_args(spec, ["a"])
-            @test args.file == ["a"]
-            @test args.files == ["a"]
-            args = parse_args(spec, ["a", "-b"])
-            @test args.file == ["a", "-b"]
-            @test args.files == ["a", "-b"]
-        end
+            # multiple, required
+            ("multiple, required; \"\"", true, nothing, String[], CliOptionError),
+            ("multiple, required; \"a\"", true, nothing, ["a"], ["a"]),
+            ("multiple, required; \"a b\"", true, nothing, ["a", "b"], ["a", "b"]),
 
-        @testset "multiple, omittable" begin
+            # multiple, omittable
+            ("multiple, omittable; \"\"", true, "foo.txt", String[], "foo.txt"),
+            ("multiple, omittable; \"a\"", true, "foo.txt", ["a"], ["a"]),
+            ("multiple, omittable; \"a b\"", true, "foo.txt", ["a", "b"], ["a", "b"]),
+        ]
+            title, multiple, default, args, expected = v
             spec = CliOptionSpec(
-                Positional("file", "files"; multiple = true, default = ["foo.txt"]),
+                Positional("file", "files"; multiple = multiple, default = default),
             )
-            args = parse_args(spec, String[])
-            @test args.file == ["foo.txt"]
-            @test args.files == ["foo.txt"]
-            args = parse_args(spec, ["a"])
-            @test args.file == ["a"]
-            @test args.files == ["a"]
-            args = parse_args(spec, ["a", "-b"])
-            @test args.file == ["a", "-b"]
-            @test args.files == ["a", "-b"]
+            if expected == CliOptionError
+                @test_throws expected parse_args(spec, args)
+            else
+                args = parse_args(spec, args)
+                @test args.file == expected
+                @test args.files == expected
+            end
         end
     end
 
