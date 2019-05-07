@@ -449,9 +449,11 @@ struct Positional <: AbstractOption
     default::Any
     help::String
 
-    function Positional(T::Type, singular_name, plural_name = "";
-                        multiple = false,
-                        validator = nothing,
+    function Positional(T::Type,
+                        singular_name::String,
+                        plural_name::String = "";
+                        multiple::Bool = false,
+                        validator::Any = nothing,
                         default::Any = nothing,
                         help::String = "")
         if singular_name == ""
@@ -472,9 +474,10 @@ struct Positional <: AbstractOption
     end
 end
 
-function Positional(singular_name, plural_name = "";
-                    multiple = false,
-                    validator = nothing,
+function Positional(singular_name::String,
+                    plural_name::String = "";
+                    multiple::Bool = false,
+                    validator::Any = nothing,
                     default::Any = nothing,
                     help::String = "")
     Positional(String, singular_name, plural_name;

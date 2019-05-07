@@ -4,33 +4,31 @@ using CliOptions
 using CliOptions: consume!
 
 @testset "Positional()" begin
-    @testset "ctor" begin
-        @test_throws ArgumentError Positional("")
-        @test_throws ArgumentError Positional("-a")
-        @test_throws ArgumentError Positional("a", "-b")
-
-        option = Positional("a")
-        @test option.names == ["a"]
-        @test option.multiple == false
-        @test option.default === nothing
-
-        option = Positional("a", "b")
-        @test option.names == ["a", "b"]
-        @test option.multiple == false
-        @test option.default === nothing
-
-        option = Positional("a", multiple = true)
-        @test option.names == ["a"]
-        @test option.multiple == true
-        @test option.default === nothing
-
-        option = Positional("a", default = 42)
-        @test option.names == ["a"]
-        @test option.multiple == false
-        @test option.default == 42
+    @testset "ctor; $(v[1]); $(v[4])" for v in [
+        ("single, required", false, nothing, [""], ArgumentError),
+        ("single, required", false, nothing, ["-a"], ArgumentError),
+        ("single, required", false, nothing, ["a", "-b"], ArgumentError),
+        ("single, required", false, nothing, ["a"], ["a"]),
+        ("single, required", false, nothing, ["a", "b"], ["a", "b"]),
+        ("multiple, required", true, nothing, ["a"], ["a"]),
+        ("multiple, required", true, nothing, ["a", "b"], ["a", "b"]),
+        ("single, omittable", false, 42, ["a"], ["a"]),
+        ("single, omittable", false, 42, ["a", "b"], ["a", "b"]),
+    ]
+        _, multiple, default, names, expected = v
+        if expected isa Type
+            @test_throws expected Positional(names...;
+                                             multiple = multiple,
+                                             default = default)
+        else
+            option = Positional(names...; multiple = multiple, default = default)
+            @test option.names == expected
+            @test option.multiple == multiple
+            @test option.default === default
+        end
     end
 
-    @testset "show(::Positional); $(join(v[1],','))" for v in [
+    @testset "show(); $(v[1])" for v in [
         (["file"], "Positional(:file)"),
         (["file", "files"], "Positional(:file,:files)"),
     ]
@@ -39,71 +37,42 @@ using CliOptions: consume!
         @test repr(option) == expected_repr
     end
 
-    @testset "consume(::Positional); empty args" begin
-        let result = CliOptions.ParseResult()
-            option = Positional("file")
-            @test_throws AssertionError consume!(result, option, Vector{String}(), 1)
-        end
-    end
-
-    @testset "consume(::Positional); single" begin
-        let result = CliOptions.ParseResult()
-            option = Positional("file")
-            next_index = consume!(result, option, [""], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["file"]
-            @test result.file == ""
-        end
-        let result = CliOptions.ParseResult()
-            option = Positional("file")
-            next_index = consume!(result, option, ["-d"], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["file"]
-            @test result.file == "-d"
-        end
-        let result = CliOptions.ParseResult()
-            option = Positional("file", "files")
-            next_index = consume!(result, option, ["-d"], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["file", "files"]
-            @test result.file == "-d"
-            @test result.files == "-d"
-        end
-    end
-
-    @testset "consume(::Positional); multiple; $(join(v[1],','))" for v in [
-        ([""], 2, [""]),
-        (["a"], 2, ["a"]),
-        (["a", "b"], 3, ["a", "b"])
+    @testset "consume!(); $(v[1]), $(v[3])" for v in [
+        ("single", false, String[], 0, AssertionError),
+        ("single", false, [""], 2, ""),
+        ("single", false, ["a"], 2, "a"),
+        ("multiple", true, String[], 0, AssertionError),
+        ("multiple", true, [""], 2, [""]),
+        ("multiple", true, ["a"], 2, ["a"]),
+        ("multiple", true, ["a", "b"], 3, ["a", "b"]),
     ]
-        args, expected_next_index, expected_values = v
+        _, multiple, args, expected_rv, expected = v
         result = CliOptions.ParseResult()
-        option = Positional("file", "files", multiple = true)
-        next_index = consume!(result, option, args, 1)
-        @test sorted_keys(result._dict) == ["file", "files"]
-        @test next_index == expected_next_index
-        @test result.file == expected_values
-        @test result.files == expected_values
+        option = Positional("file", "files"; multiple = multiple)
+        if expected isa Type
+            @test_throws expected consume!(result, option, args, 1)
+        else
+            next_index = consume!(result, option, args, 1)
+            @test next_index == expected_rv
+            @test sorted_keys(result._dict) == ["file", "files"]
+            @test result.file == expected
+        end
     end
 
-    @testset "consume(::Positional); type" begin
-        let result = CliOptions.ParseResult()
-            option = Positional(Int32, "number", "numbers", multiple = true)
-            next_index = consume!(result, option, ["2", "-3"], 1)
-            @test next_index == 3
-            @test sorted_keys(result._dict) == ["number", "numbers"]
-            @test result.numbers == [2, -3]
-        end
-        let result = CliOptions.ParseResult()
-            option = Positional(Date, "date", "dates", multiple = false)
-            next_index = consume!(result, option, ["2006-01-02"], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["date", "dates"]
-            @test result.date == Date(2006, 1, 2)
-        end
-        let result = CliOptions.ParseResult()
-            option = Positional(Date, "date", multiple = false)
-            @test_throws CliOptionError consume!(result, option, ["not_a_date"], 1)
+    @testset "consume!(); type, $(v[1]), $(v[2])" for v in [
+        (Int32, ["2"], Int32(2)),
+        (Int32, ["-3"], Int32(-3)),
+        (Date, ["2006-01-02"], Date(2006, 1, 2)),
+        (Date, ["__not_a_date__"], CliOptionError),
+    ]
+        T, args, expected = v
+        result = CliOptions.ParseResult()
+        option = Positional(T, "value")
+        if expected isa Type
+            @test_throws expected consume!(result, option, args, 1)
+        else
+            consume!(result, option, args, 1)
+            @test result.value == expected
         end
     end
 
