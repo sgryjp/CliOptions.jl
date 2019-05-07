@@ -123,26 +123,30 @@ using CliOptions
     end
 
     @testset "Positional" begin
-        @testset "$(v[1])" for v in [
+        @testset "$(v[1]), $(v[4])" for v in [
             # single, required
-            ("single, required; \"\"", false, nothing, String[], CliOptionError),
-            ("single, required; \"a\"", false, nothing, ["a"], "a"),
-            ("single, required; \"a b\"", false, nothing, ["a", "b"], CliOptionError),
+            ("single, required", false, nothing, String[], CliOptionError),
+            ("single, required", false, nothing, ["a"], "a"),
+            ("single, required", false, nothing, ["a", "b"], CliOptionError),
+            #("single, required", false, nothing, ["-1"], "-1"),
+            #("single, required", false, nothing, ["-a"], CliOptionError),
 
             # single, omittable
-            ("single, omittable; \"\"", false, "foo.txt", String[], "foo.txt"),
-            ("single, omittable; \"a\"", false, "foo.txt", ["a"], "a"),
-            ("single, omittable; \"a b\"", false, "foo.txt", ["a", "b"], CliOptionError),
+            ("single, omittable", false, "foo.txt", String[], "foo.txt"),
+            ("single, omittable", false, "foo.txt", ["a"], "a"),
+            ("single, omittable", false, "foo.txt", ["a", "b"], CliOptionError),
 
             # multiple, required
-            ("multiple, required; \"\"", true, nothing, String[], CliOptionError),
-            ("multiple, required; \"a\"", true, nothing, ["a"], ["a"]),
-            ("multiple, required; \"a b\"", true, nothing, ["a", "b"], ["a", "b"]),
+            ("multiple, required", true, nothing, String[], CliOptionError),
+            ("multiple, required", true, nothing, ["a"], ["a"]),
+            ("multiple, required", true, nothing, ["a", "b"], ["a", "b"]),
+            #("multiple, required", true, nothing, ["a", "-1"], "-1"),
+            #("multiple, required", true, nothing, ["a", "-a"], CliOptionError),
 
             # multiple, omittable
-            ("multiple, omittable; \"\"", true, "foo.txt", String[], "foo.txt"),
-            ("multiple, omittable; \"a\"", true, "foo.txt", ["a"], ["a"]),
-            ("multiple, omittable; \"a b\"", true, "foo.txt", ["a", "b"], ["a", "b"]),
+            ("multiple, omittable", true, "foo.txt", String[], "foo.txt"),
+            ("multiple, omittable", true, "foo.txt", ["a"], ["a"]),
+            ("multiple, omittable", true, "foo.txt", ["a", "b"], ["a", "b"]),
         ]
             title, multiple, default, args, expected = v
             spec = CliOptionSpec(
@@ -158,20 +162,27 @@ using CliOptions
         end
     end
 
-    @testset "RemainderOption" begin
-        spec = CliOptionSpec(RemainderOption())
-        args = parse_args(spec, String[])
-        @test args._remainders == []
-
-        try
-        args = parse_args(spec, ["a", "-b", "--c"])
-        catch ex
-            @test ex isa CliOptionError
-            @test occuresin("\"a\"", ex.msg)
+    @testset "RemainderOption; $(v[1]), $(v[2])" for v in [
+        (["--"], String[], AbstractString[]),
+        (["--"], ["a", "-7", "--c"], CliOptionError),
+        (["--"], ["--", "a", "-7", "--c"], ["a", "-7", "--c"]),
+    ]
+        names, args, expected = v
+        spec = CliOptionSpec(
+            FlagOption("-7"),
+            RemainderOption(names...),
+        )
+        if expected isa Type
+            try
+                parse_args(spec, args)
+            catch ex
+                @test ex isa CliOptionError
+                @test occursin(repr(args[1]), ex.msg)
+            end
+        else
+            args = parse_args(spec, args)
+            @test args._remainders == expected
         end
-
-        args = parse_args(spec, ["--", "a", "-b", "--c"])
-        @test args._remainders == ["a", "-b", "--c"]
     end
 
     @testset "OptionGroup" begin
