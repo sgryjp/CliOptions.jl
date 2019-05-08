@@ -181,9 +181,7 @@ function Option(primary_name::String, secondary_name::String = "";
            default = default, validator = validator, help = help)
 end
 
-function set_default!(result::ParseResult, o::Option)
-    result._counter[o] = 0
-end
+set_default!(result::ParseResult, o::Option) = nothing
 
 function consume!(result::ParseResult, o::Option, args, i)
     @assert 1 ≤ i ≤ length(args)
@@ -195,10 +193,7 @@ function consume!(result::ParseResult, o::Option, args, i)
     end
 
     # Get how many times this option was evaluated
-    count::Int = get(result._counter, o, -1)
-    if count == -1
-        result._counter[o] = 0
-    end
+    count::Int = get!(result._counter, o, 0)
 
     # Skip if this node is already processed
     if 1 ≤ count
@@ -274,7 +269,6 @@ struct FlagOption <: AbstractOption
 end
 
 function set_default!(result::ParseResult, o::FlagOption)
-    result._counter[o] = 0
     foreach(k -> result._dict[encode(k)] = false, o.names)
     foreach(k -> result._dict[encode(k)] = true, o.negators)
 end
@@ -304,7 +298,7 @@ function consume!(result::ParseResult, o::FlagOption, args, i)
     end
 
     # Update counter
-    count::Int = get(result._counter, o, -1)
+    count::Int = get!(result._counter, o, 0)
     result._counter[o] = count + 1
 
     # Construct parsed values
@@ -378,7 +372,6 @@ function CounterOption(primary_name::String, secondary_name::String = "";
 end
 
 function set_default!(result::ParseResult, o::CounterOption)
-    result._counter[o] = 0
     foreach(k -> result._dict[encode(k)] = o.T(o.default), o.names)
 end
 
@@ -406,8 +399,7 @@ function consume!(result::ParseResult, o::CounterOption, args, i)
     value = o.T(get(result._dict, encode(o.names[1]), 0) + diff)
 
     # Update counter
-    count::Int = get(result._counter, o, -1)
-    result._counter[o] = count + 1
+    result._counter[o] = get(result._counter, o, 0) + 1
 
     # Construct parsed values
     foreach(k -> result._dict[encode(k)] = value, o.names)
@@ -524,9 +516,7 @@ function Positional(singular_name::String,
                multiple = multiple, validator = validator, default = default, help = help)
 end
 
-function set_default!(result::ParseResult, o::Positional)
-    # Do nothing
-end
+set_default!(result::ParseResult, o::Positional) = nothing
 
 function consume!(result::ParseResult, o::Positional, args, i)
     @assert 1 ≤ i ≤ length(args)
