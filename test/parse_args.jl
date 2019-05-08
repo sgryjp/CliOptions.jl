@@ -175,6 +175,7 @@ using CliOptions
         if expected isa Type
             try
                 parse_args(spec, args)
+                @assert false "Must throw an exception"
             catch ex
                 @test ex isa CliOptionError
                 @test occursin(repr(args[1]), ex.msg)

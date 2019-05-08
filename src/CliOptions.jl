@@ -567,6 +567,11 @@ function consume!(result::ParseResult, o::RemainderOption, args, i)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
 
+    # Skip if name does not match
+    if args[i] ∉ o.names && !(args[i] == "--" && "--_remainders" in o.names)
+        return 0
+    end
+
     # Parse arguments
     values = AbstractString[]
     for arg in args[i + 1:end]
