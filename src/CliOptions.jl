@@ -168,9 +168,7 @@ struct Option <: AbstractOption
     function Option(T::Type, primary_name::String, secondary_name::String = "";
                     default = nothing, validator = nothing, help = "")
         names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
-        for name in names
-            _validate_option_name(Option, name)
-        end
+        _validate_option_names(Option, names)
         new(names, T, validator, default, help)
     end
 end
@@ -264,12 +262,8 @@ struct FlagOption <: AbstractOption
         if negators isa String
             negators = [negators]
         end
-        for name in names
-            _validate_option_name(FlagOption, name)
-        end
-        for name in negators
-            _validate_option_name(FlagOption, name)
-        end
+        _validate_option_names(FlagOption, names)
+        _validate_option_names(FlagOption, negators; allow_nameless = true)
         if negator_help == ""
             negator_help = "Negate usage of " * names[1] * " option"
         end
@@ -358,12 +352,8 @@ struct CounterOption <: AbstractOption
         if decrementers isa String
             decrementers = [decrementers]
         end
-        for name in names
-            _validate_option_name(CounterOption, name)
-        end
-        for name in decrementers
-            _validate_option_name(CounterOption, name)
-        end
+        _validate_option_names(CounterOption, names)
+        _validate_option_names(CounterOption, decrementers; allow_nameless = true)
         if !(T <: Signed)
             throw(ArgumentError("Type of a CounterOption must be a subtype of Signed:" *
                                 " \"$T\""))
@@ -561,9 +551,9 @@ struct RemainderOption <: AbstractOption
 
     function RemainderOption(primary_name::AbstractString = "--",
                              secondary_name::AbstractString = "";
-                             help = "Stop option scanning")
+                             help::String = "Stop option scanning")
         names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
-        foreach(name -> _validate_option_name(RemainderOption, name), names)
+        _validate_option_names(RemainderOption, names)
         replace!(names, "--" => "--_remainders")
         new(Tuple(names), help)
     end
@@ -867,18 +857,24 @@ function _check_option_name(name)
     return :valid  # It is a name of an option
 end
 
-function _validate_option_name(T, name)
-    article(T) = occursin(lowercase("$T"[1]), "aeiou") ? "an" : "a"
-    result = _check_option_name(name)
-    if result == :empty
-        throw(ArgumentError("Name of $(article(T)) $T must not be empty"))
-    elseif result == :not_hyphen
-        throw(ArgumentError("Name of $(article(T)) $T must start with a hyphen: \"$name\""))
-    elseif result in (:two_hyphens, :invalid)
-        if T == RemainderOption && result == :two_hyphens
-            return
+function _validate_option_names(T, names; allow_nameless = false)
+    article(T) = occursin("$T"[1], "AEIOUaeiou") ? "an" : "a"
+    if !allow_nameless && length(names) == 0
+        throw(ArgumentError("At least one name must be supplied for $(article(T)) $T"))
+    end
+    for name in names
+        result = _check_option_name(name)
+        if result == :empty
+            throw(ArgumentError("Name of $(article(T)) $T must not be empty"))
+        elseif result == :not_hyphen
+            throw(ArgumentError("Name of $(article(T)) $T must start with a hyphen:" *
+                                " \"$name\""))
+        elseif result in (:two_hyphens, :invalid)
+            if T == RemainderOption && result == :two_hyphens
+                return
+            end
+            throw(ArgumentError("Invalid name for $T: \"$name\""))
         end
-        throw(ArgumentError("Invalid name for $T: \"$name\""))
     end
 end
 

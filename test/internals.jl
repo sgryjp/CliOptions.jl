@@ -3,30 +3,32 @@ using CliOptions: encode
 
 @testset "Internal utilities" begin
 
-    @testset "_validate_option_name(); $(v[1])" for v in [
+    @testset "_validate_option_names(); $(v[1])" for v in [
         # valid form
-        ("short form", Option, "-a", false, ""),
-        ("long form", Option, "--foo-bar", false, ""),
+        ("short form", Option, ["-a"], false, ""),
+        ("long form", Option, ["--foo-bar"], false, ""),
 
         # article in an error message
-        ("article for Option", Option, "a", true, "an Option"),
-        ("article for FlagOption", FlagOption, "a", true, "a FlagOption"),
-        ("article for CounterOption", CounterOption, "a", true, "a CounterOption"),
+        ("article for Option", Option, ["a"], true, "an Option"),
+        ("article for FlagOption", FlagOption, ["a"], true, "a FlagOption"),
+        ("article for CounterOption", CounterOption,[ "a"], true, "a CounterOption"),
 
         # reason
-        ("empty", Option, "", true, "must not be empty"),
-        ("starting with non-hyphen", Option, "a", true, "must start with a hyphen"),
-        ("double hyphen only", Option, "--", true, "Invalid name"),
+        ("nameless", Option, String[], true, "At least one name"),
+        ("empty", Option, [""], true, "must not be empty"),
+        ("starting with non-hyphen", Option, ["a"], true, "must start with a hyphen"),
+        ("double hyphen only", Option, ["--"], true, "Invalid name"),
     ]
-        _, T, optval, should_fail, substr = v
+        _, T, names, should_fail, substr = v
         ok = false
         try
-            CliOptions._validate_option_name(T, optval)
+            CliOptions._validate_option_names(T, names)
             ok = true
         catch ex
             @test ex isa ArgumentError
-            @test occursin("$T", ex.msg)
-            @test occursin(optval, ex.msg)
+            if 1 ≤ length(names)
+                @test occursin(names[1], ex.msg)
+            end
             @test occursin(substr, ex.msg)
         end
         @test ok == !should_fail
