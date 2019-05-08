@@ -1,6 +1,8 @@
 module CliOptions
 
 
+StringOrStrings = Union{String,Tuple{Vararg{String}},Vector{String}}
+
 """
     CliOptionError(msg::String)
 
@@ -424,6 +426,47 @@ function print_description(io::IO, o::CounterOption)
     if 1 ≤ length(o.decrementers)
         print_description(io, o.decrementers, "", o.decrementer_help)
     end
+end
+
+
+"""
+    HelpOption(names = ("-h", "--help"); help = "")
+
+Options for printing help (usage) message.
+
+This option is a customized [`FlagOption`](@ref). Although the default help message is
+"show usage message and exit", CliOptions does not force program to print usage message nor
+to exit. Such behavior must be implemented manually by programmers.
+"""
+struct HelpOption <: AbstractOption
+    names
+    flag::FlagOption
+
+    function HelpOption(names::String...; help = "")
+        help = help == "" ? "Show usage message and exit" : help
+        if length(names) == 0
+            names = ("-h", "--help")
+        end
+        _validate_option_names(HelpOption, names)  # for error message
+        flag = FlagOption(names...; help = help)
+        new(flag.names, flag)
+    end
+end
+
+set_default!(result::ParseResult, o::HelpOption) = nothing
+
+function consume!(result::ParseResult, o::HelpOption, args, i)
+    consume!(result, o.flag, args, i)
+end
+
+post_parse_action!(result, o::HelpOption) = nothing
+
+function to_usage_tokens(o::HelpOption)
+    ["[" * o.names[1] * "]"]
+end
+
+function print_description(io::IO, o::HelpOption)
+    print_description(io, o.names, "", o.help)
 end
 
 
@@ -958,6 +1001,7 @@ export CliOptionSpec,
        Option,
        FlagOption,
        CounterOption,
+       HelpOption,
        Positional,
        RemainderOption,
        OptionGroup,
