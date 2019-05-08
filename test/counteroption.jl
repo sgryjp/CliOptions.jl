@@ -19,17 +19,17 @@ using CliOptions
             @test_throws ArgumentError CounterOption(UInt8, "-a")
 
             option = CounterOption("-a")
-            @test option.names == ["-a"]
+            @test option.names == ("-a",)
             @test option.decrementers == String[]
         end
 
         @testset "decrementers" begin
             option = CounterOption("-a", "-b", decrementers = "-c")
-            @test option.names == ["-a", "-b"]
+            @test option.names == ("-a", "-b")
             @test option.decrementers == ["-c"]
 
             option = CounterOption("-a", "-b", decrementers = ["-c", "-d"])
-            @test option.names == ["-a", "-b"]
+            @test option.names == ("-a", "-b")
             @test option.decrementers == ["-c", "-d"]
         end
 

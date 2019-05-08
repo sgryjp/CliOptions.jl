@@ -63,102 +63,76 @@ using CliOptions
         end
     end
 
-    @testset "FlagOption" begin  #TODO: 背反
-        spec = CliOptionSpec(FlagOption("-a"; negators = ["-b"]))
-        args = parse_args(spec, ["-a"])
-        @test args.a == true
-        @test args.b == false
-
-        args = parse_args(spec, ["-b"])
-        @test args.a == false
-        @test args.b == true
-
-        spec = CliOptionSpec(FlagOption("-a"; negators = ["-b"]), FlagOption("-c"))
-        args = parse_args(spec, ["-c"])
-        @test args.c == true
-        @test args.a == false
-        @test args.b == true
+    @testset "FlagOption; $(v[1])" for v in [
+        (["-a"], true),
+        (["-b"], false),
+        ([], false),
+    ]
+        args, expected = v
+        spec = CliOptionSpec(
+            FlagOption("-a"; negators = "-b")
+        )
+        result = parse_args(spec, args)
+        @test result.a == expected
+        @test result.b == !expected
     end
 
-    @testset "CounterOption" begin  #TODO: 背反
-        spec = CliOptionSpec(CounterOption("-a"; decrementers = ["-b"]))
-        args = parse_args(spec, ["-a"])
-        @test sorted_keys(args._dict) == ["a"]
-        @test args.a == 1
-
-        args = parse_args(spec, ["-b"])
-        @test sorted_keys(args._dict) == ["a"]
-        @test args.a == -1
-
-        @testset "implicit default" begin
-            spec = CliOptionSpec(CounterOption(Int8, "-a"; decrementers = ["-b"]),
-                                 CounterOption(Int32, "-c"))
-            args = parse_args(spec, ["-c"])
-            @test sorted_keys(args._dict) == ["a", "c"]
-            @test args.a == 0
-            @test typeof(args.a) == Int8
-            @test args.c == 1
-            @test typeof(args.c) == Int32
-        end
-
-        @testset "explicit default" begin
-            spec = CliOptionSpec(CounterOption(Int8, "-a";
-                                               decrementers = ["-b"],
-                                               default = -1),
-                                 CounterOption(Int32, "-c"))
-            args = parse_args(spec, ["-a"])
-            @test args.a == 0
-            args = parse_args(spec, ["-c"])
-            @test args.a == -1
-            args = parse_args(spec, ["-b"])
-            @test args.a == -2
-
-            spec = CliOptionSpec(CounterOption(Int8, "-a";
-                                               decrementers = ["-b"], default = 127))
-            @test_throws InexactError parse_args(spec, ["-a"])
-            spec = CliOptionSpec(CounterOption(Int8, "-a";
-                                               decrementers = ["-b"], default = -128))
-            @test_throws InexactError parse_args(spec, ["-b"])
+    @testset "CounterOption; $(v[1:3])" for v in [
+        (Int8, 127, "--add", InexactError),
+        (Int8, 126, "--add", Int8(127)),
+        (Int8, -127, "--sub", Int8(-128)),
+        (Int8, -128, "--sub", InexactError),
+        (Int128, 0, "--add --sub", Int128(0)),
+    ]
+        T, default, args, expected = v
+        spec = CliOptionSpec(CounterOption(T, "--add";
+                                           decrementers = ["--sub"],
+                                           default = default))
+        if expected isa Type
+            @test_throws expected parse_args(spec, split(args))
+        else
+            args = parse_args(spec, split(args))
+            @test sorted_keys(args._dict) == ["add"]
+            @test args.add == expected
+            @test typeof(args.add) == typeof(expected)
         end
     end
 
-    @testset "Positional" begin
-        @testset "$(v[1]), $(v[4])" for v in [
-            # single, required
-            ("single, required", false, nothing, String[], CliOptionError),
-            ("single, required", false, nothing, ["a"], "a"),
-            ("single, required", false, nothing, ["a", "b"], CliOptionError),
-            #("single, required", false, nothing, ["-1"], "-1"),
-            #("single, required", false, nothing, ["-a"], CliOptionError),
+    @testset "Positional; $(v[1]), $(v[4])" for v in [
+        # single, required
+        ("single, required", false, nothing, String[], CliOptionError),
+        ("single, required", false, nothing, ["a"], "a"),
+        ("single, required", false, nothing, ["a", "b"], CliOptionError),
+        #("single, required", false, nothing, ["-1"], "-1"),
+        #("single, required", false, nothing, ["-a"], CliOptionError),
 
-            # single, omittable
-            ("single, omittable", false, "foo.txt", String[], "foo.txt"),
-            ("single, omittable", false, "foo.txt", ["a"], "a"),
-            ("single, omittable", false, "foo.txt", ["a", "b"], CliOptionError),
+        # single, omittable
+        ("single, omittable", false, "foo.txt", String[], "foo.txt"),
+        ("single, omittable", false, "foo.txt", ["a"], "a"),
+        ("single, omittable", false, "foo.txt", ["a", "b"], CliOptionError),
 
-            # multiple, required
-            ("multiple, required", true, nothing, String[], CliOptionError),
-            ("multiple, required", true, nothing, ["a"], ["a"]),
-            ("multiple, required", true, nothing, ["a", "b"], ["a", "b"]),
-            #("multiple, required", true, nothing, ["a", "-1"], "-1"),
-            #("multiple, required", true, nothing, ["a", "-a"], CliOptionError),
+        # multiple, required
+        ("multiple, required", true, nothing, String[], CliOptionError),
+        ("multiple, required", true, nothing, ["a"], ["a"]),
+        ("multiple, required", true, nothing, ["a", "b"], ["a", "b"]),
+        #("multiple, required", true, nothing, ["a", "-1"], ["a", "-1"]),
+        #("multiple, required", true, nothing, ["a", "-a"], CliOptionError),
 
-            # multiple, omittable
-            ("multiple, omittable", true, "foo.txt", String[], "foo.txt"),
-            ("multiple, omittable", true, "foo.txt", ["a"], ["a"]),
-            ("multiple, omittable", true, "foo.txt", ["a", "b"], ["a", "b"]),
-        ]
-            title, multiple, default, args, expected = v
-            spec = CliOptionSpec(
-                Positional("file", "files"; multiple = multiple, default = default),
-            )
-            if expected == CliOptionError
-                @test_throws expected parse_args(spec, args)
-            else
-                args = parse_args(spec, args)
-                @test args.file == expected
-                @test args.files == expected
-            end
+        # multiple, omittable
+        ("multiple, omittable", true, "foo.txt", String[], "foo.txt"),
+        ("multiple, omittable", true, "foo.txt", ["a"], ["a"]),
+        ("multiple, omittable", true, "foo.txt", ["a", "b"], ["a", "b"]),
+    ]
+        title, multiple, default, args, expected = v
+        spec = CliOptionSpec(
+            Positional("file", "files"; multiple = multiple, default = default),
+        )
+        if expected == CliOptionError
+            @test_throws expected parse_args(spec, args)
+        else
+            args = parse_args(spec, args)
+            @test args.file == expected
+            @test args.files == expected
         end
     end
 

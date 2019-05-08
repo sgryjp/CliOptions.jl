@@ -8,12 +8,12 @@ using CliOptions: consume!
         ("single, required", false, nothing, [""], ArgumentError),
         ("single, required", false, nothing, ["-a"], ArgumentError),
         ("single, required", false, nothing, ["a", "-b"], ArgumentError),
-        ("single, required", false, nothing, ["a"], ["a"]),
-        ("single, required", false, nothing, ["a", "b"], ["a", "b"]),
-        ("multiple, required", true, nothing, ["a"], ["a"]),
-        ("multiple, required", true, nothing, ["a", "b"], ["a", "b"]),
-        ("single, omittable", false, 42, ["a"], ["a"]),
-        ("single, omittable", false, 42, ["a", "b"], ["a", "b"]),
+        ("single, required", false, nothing, ["a"], ("a",)),
+        ("single, required", false, nothing, ["a", "b"], ("a", "b")),
+        ("multiple, required", true, nothing, ["a"], ("a",)),
+        ("multiple, required", true, nothing, ["a", "b"], ("a", "b")),
+        ("single, omittable", false, 42, ["a"], ("a",)),
+        ("single, omittable", false, 42, ["a", "b"], ("a", "b")),
     ]
         _, multiple, default, names, expected = v
         if expected isa Type

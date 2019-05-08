@@ -159,7 +159,7 @@ If you want an option which does not take a command line argument as its value, 
 [`FlagOption`](@ref) and [`CounterOption`](@ref)
 """
 struct Option <: AbstractOption
-    names::Vector{String}
+    names::Union{Tuple{String},Tuple{String,String}}
     T::Type
     validator::Any
     default::Any
@@ -167,11 +167,11 @@ struct Option <: AbstractOption
 
     function Option(T::Type, primary_name::String, secondary_name::String = "";
                     default = nothing, validator = nothing, help = "")
-        names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
-        for name ∈ names
+        names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
+        for name in names
             _validate_option_name(Option, name)
         end
-        new([n for n ∈ names], T, validator, default, help)
+        new(names, T, validator, default, help)
     end
 end
 
@@ -252,7 +252,7 @@ end
 no value and whether it was specified becomes a boolean value.
 """
 struct FlagOption <: AbstractOption
-    names::Vector{String}
+    names::Union{Tuple{String},Tuple{String,String}}
     negators::Vector{String}
     help::String
     negator_help::String
@@ -260,17 +260,20 @@ struct FlagOption <: AbstractOption
     function FlagOption(primary_name::String, secondary_name::String = "";
                         negators::Union{String,Vector{String}} = String[],
                         help = "", negator_help = "")
-        names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
+        names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
         if negators isa String
             negators = [negators]
         end
-        for name in unique(vcat(collect(names), negators))
+        for name in names
+            _validate_option_name(FlagOption, name)
+        end
+        for name in negators
             _validate_option_name(FlagOption, name)
         end
         if negator_help == ""
             negator_help = "Negate usage of " * names[1] * " option"
         end
-        new([n for n ∈ names], [n for n ∈ negators], help, negator_help)
+        new(names, [n for n ∈ negators], help, negator_help)
     end
 end
 
@@ -339,7 +342,7 @@ A type represents a flag-like command line option. Total number of times a `Coun
 was specified becomes the option's value.
 """
 struct CounterOption <: AbstractOption
-    names::Vector{String}
+    names::Union{Tuple{String},Tuple{String,String}}
     decrementers::Vector{String}
     default::Signed
     T::Type
@@ -351,11 +354,14 @@ struct CounterOption <: AbstractOption
                            default::Signed = 0,
                            help::String = "",
                            decrementer_help::String = "")
-        names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
+        names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
         if decrementers isa String
             decrementers = [decrementers]
         end
-        for name in unique(vcat(collect(names), decrementers))
+        for name in names
+            _validate_option_name(CounterOption, name)
+        end
+        for name in decrementers
             _validate_option_name(CounterOption, name)
         end
         if !(T <: Signed)
@@ -365,10 +371,10 @@ struct CounterOption <: AbstractOption
         if decrementer_help == ""
             decrementer_help = "Opposite of " * names[1] * " option"
         end
-        new([n for n ∈ names], [n for n ∈ decrementers], T(default), T, help,
-            decrementer_help)
+        new(names, [n for n ∈ decrementers], T(default), T, help, decrementer_help)
     end
 end
+
 function CounterOption(primary_name::String, secondary_name::String = "";
                        decrementers::Union{String,Vector{String}} = String[],
                        default::Signed = 0,
@@ -422,6 +428,7 @@ function to_usage_tokens(o::CounterOption)
     latter_part = 1 ≤ length(o.decrementers) ? " | " * o.decrementers[1] : ""
     ["[" * o.names[1] * latter_part * "]"]
 end
+
 function print_description(io::IO, o::CounterOption)
     print_description(io, o.names, "", o.help)
     if 1 ≤ length(o.decrementers)
@@ -442,7 +449,7 @@ value.
 [Option](@ref) for more detail.
 """
 struct Positional <: AbstractOption
-    names::Vector{String}
+    names::Union{Tuple{String},Tuple{String,String}}
     T::Type
     multiple::Bool
     validator::Any
@@ -467,9 +474,9 @@ struct Positional <: AbstractOption
         end
 
         if plural_name == ""
-            return new([singular_name], T, multiple, validator, default, help)
+            return new((singular_name,), T, multiple, validator, default, help)
         else
-            return new([singular_name, plural_name], T, multiple, validator, default, help)
+            return new((singular_name, plural_name), T, multiple, validator, default, help)
         end
     end
 end
@@ -537,6 +544,7 @@ function to_usage_tokens(o::Positional)
         [name]
     end
 end
+
 function print_description(io::IO, o::Positional)
     print_description(io, (uppercase(o.names[1]),), "", o.help)
 end

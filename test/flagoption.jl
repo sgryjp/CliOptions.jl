@@ -17,15 +17,15 @@ using CliOptions
         #@test_throws ArgumentError FlagOption("-a"; negators = ["-a"])  #TODO
 
         option = FlagOption("-a")
-        @test option.names == ["-a"]
+        @test option.names == ("-a",)
         @test option.negators == String[]
 
         option = FlagOption("-a", "-b", negators = "-c")
-        @test option.names == ["-a", "-b"]
+        @test option.names == ("-a", "-b")
         @test option.negators == ["-c"]
 
         option = FlagOption("-a", "-b", negators = ["-c", "-d"])
-        @test option.names == ["-a", "-b"]
+        @test option.names == ("-a", "-b")
         @test option.negators == ["-c", "-d"]
     end
 

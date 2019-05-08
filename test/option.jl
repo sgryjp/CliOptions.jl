@@ -10,8 +10,8 @@ using CliOptions
         @test_throws ArgumentError Option("a")
         @test_throws ArgumentError Option("-")
         @test_throws ArgumentError Option("--")
-        @test Option("-a").names == ["-a"]
-        @test Option("-a", "-b").names == ["-a", "-b"]
+        @test Option("-a").names == ("-a",)
+        @test Option("-a", "-b").names == ("-a", "-b")
 
         @test Option(String, "-a").T == String
         @test Option(DateTime, "-a").T == DateTime
