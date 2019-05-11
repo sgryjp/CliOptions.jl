@@ -103,8 +103,9 @@ using CliOptions
         ("single, required", false, nothing, String[], CliOptionError),
         ("single, required", false, nothing, ["a"], "a"),
         ("single, required", false, nothing, ["a", "b"], CliOptionError),
-        #("single, required", false, nothing, ["-1"], "-1"),
-        #("single, required", false, nothing, ["-a"], CliOptionError),
+        ("single, required", false, nothing, ["-1"], "-1"),
+        ("single, required", false, nothing, ["-7"], CliOptionError),
+        ("single, required", false, nothing, ["-a"], CliOptionError),
 
         # single, omittable
         ("single, omittable", false, "foo.txt", String[], "foo.txt"),
@@ -115,8 +116,12 @@ using CliOptions
         ("multiple, required", true, nothing, String[], CliOptionError),
         ("multiple, required", true, nothing, ["a"], ["a"]),
         ("multiple, required", true, nothing, ["a", "b"], ["a", "b"]),
-        #("multiple, required", true, nothing, ["a", "-1"], ["a", "-1"]),
-        #("multiple, required", true, nothing, ["a", "-a"], CliOptionError),
+        ("multiple, required", true, nothing, ["a", "-1"], ["a", "-1"]),
+        ("multiple, required", true, nothing, ["a", "-7"], ["a"]),
+        ("multiple, required", true, nothing, ["a", "-a"], CliOptionError),
+        ("multiple, required", true, nothing, ["-1", "a"], ["-1", "a"]),
+        ("multiple, required", true, nothing, ["-7", "a"], ["a"]),
+        ("multiple, required", true, nothing, ["-a", "a"], CliOptionError),
 
         # multiple, omittable
         ("multiple, omittable", true, "foo.txt", String[], "foo.txt"),
@@ -125,14 +130,15 @@ using CliOptions
     ]
         title, multiple, default, args, expected = v
         spec = CliOptionSpec(
+            FlagOption("-7"),
             Positional("file", "files"; multiple = multiple, default = default),
         )
         if expected == CliOptionError
             @test_throws expected parse_args(spec, args)
         else
-            args = parse_args(spec, args)
-            @test args.file == expected
-            @test args.files == expected
+            result = parse_args(spec, args)
+            @test result.file == expected
+            @test result.files == expected
         end
     end
 

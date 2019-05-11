@@ -50,9 +50,9 @@ using CliOptions: consume!
         result = CliOptions.ParseResult()
         option = Positional("file", "files"; multiple = multiple)
         if expected isa Type
-            @test_throws expected consume!(result, option, args, 1)
+            @test_throws expected consume!(result, [option], option, args, 1)
         else
-            next_index = consume!(result, option, args, 1)
+            next_index = consume!(result, [option], option, args, 1)
             @test next_index == expected_rv
             @test sorted_keys(result._dict) == ["file", "files"]
             @test result.file == expected
@@ -69,9 +69,9 @@ using CliOptions: consume!
         result = CliOptions.ParseResult()
         option = Positional(T, "value")
         if expected isa Type
-            @test_throws expected consume!(result, option, args, 1)
+            @test_throws expected consume!(result, [option], option, args, 1)
         else
-            consume!(result, option, args, 1)
+            consume!(result, [option], option, args, 1)
             @test result.value == expected
         end
     end
@@ -79,25 +79,25 @@ using CliOptions: consume!
     @testset "consume(::Positional); validator, Vector{String}" begin
         option = Positional("name", "names", validator = ["foo", "bar"], multiple = true)
         let result = CliOptions.ParseResult()
-            next_index = consume!(result, option, ["foo", "bar"], 1)
+            next_index = consume!(result, [option], option, ["foo", "bar"], 1)
             @test next_index == 3
             @test result.names == ["foo", "bar"]
         end
 
         option = Positional("name", validator = ["foo", "bar"])
         let result = CliOptions.ParseResult()
-            next_index = consume!(result, option, ["foo"], 1)
+            next_index = consume!(result, [option], option, ["foo"], 1)
             @test next_index == 2
             @test result.name == "foo"
         end
         let result = CliOptions.ParseResult()
-            next_index = consume!(result, option, ["bar"], 1)
+            next_index = consume!(result, [option], option, ["bar"], 1)
             @test next_index == 2
             @test result.name == "bar"
         end
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["baz"], 1)
+                CliOptions.consume!(result, [option], option, ["baz"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("baz", ex.msg)
@@ -111,27 +111,27 @@ using CliOptions: consume!
     @testset "consume(::Positional); validator, Tuple{Vararg{Int}}" begin
         option = Positional(Int, "number", "numbers", validator = (7, 13), multiple = true)
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["7", "13"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["7", "13"], 1)
             @test next_index == 3
             @test result.numbers isa Vector{Int}
             @test result.numbers == [7, 13]
         end
         option = Positional(Int, "number", validator = (7, 13))
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["7"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["7"], 1)
             @test next_index == 2
             @test result.number isa Int
             @test result.number == 7
         end
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["13"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["13"], 1)
             @test next_index == 2
             @test result.number isa Int
             @test result.number == 13
         end
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["9"], 1)
+                CliOptions.consume!(result, [option], option, ["9"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("9", ex.msg)
@@ -145,24 +145,24 @@ using CliOptions: consume!
     @testset "consume(::Positional); validator, Regex" begin
         option = Positional("name", "names", validator = Regex("qu+x"), multiple = true)
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["qux", "quux"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["qux", "quux"], 1)
             @test next_index == 3
             @test result.names == ["qux", "quux"]
         end
         option = Positional("name", validator = Regex("qu+x"))
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["qux"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["qux"], 1)
             @test next_index == 2
             @test result.name == "qux"
         end
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["quux"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["quux"], 1)
             @test next_index == 2
             @test result.name == "quux"
         end
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["foo"], 1)
+                CliOptions.consume!(result, [option], option, ["foo"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("foo", ex.msg)
@@ -178,13 +178,13 @@ using CliOptions: consume!
 
         option = Positional("name", "names", validator = f, multiple = true)
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["foo", "foobar"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["foo", "foobar"], 1)
             @test next_index == 3
             @test result.names == ["foo", "foobar"]
         end
         option = Positional("name", validator = f)
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["foo"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["foo"], 1)
             @test next_index == 2
             @test result.name == "foo"
         end
@@ -192,7 +192,7 @@ using CliOptions: consume!
         # String
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["bar"], 1)
+                CliOptions.consume!(result, [option], option, ["bar"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("bar", ex.msg)
@@ -204,7 +204,7 @@ using CliOptions: consume!
         option = Positional(Int8, "name", validator = g)
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["7"], 1)
+                CliOptions.consume!(result, [option], option, ["7"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("Int8", ex.msg)
@@ -220,13 +220,13 @@ using CliOptions: consume!
 
         option = Positional("name", "names", validator = f, multiple = true)
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["foo", "foobar"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["foo", "foobar"], 1)
             @test next_index == 3
             @test result.names == ["foo", "foobar"]
         end
         option = Positional("name", validator = f)
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["foo"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["foo"], 1)
             @test next_index == 2
             @test result.name == "foo"
         end
@@ -234,7 +234,7 @@ using CliOptions: consume!
         # String
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["bar"], 1)
+                CliOptions.consume!(result, [option], option, ["bar"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("bar", ex.msg)
@@ -246,7 +246,7 @@ using CliOptions: consume!
         option = Positional(Int8, "name", validator = g)
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["7"], 1)
+                CliOptions.consume!(result, [option], option, ["7"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("Int8", ex.msg)

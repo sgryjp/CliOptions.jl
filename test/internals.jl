@@ -43,6 +43,34 @@ using CliOptions: encode
         @test encode("-foo bar") == "foo_bar"
     end
 
+    @testset "foreach_options; $(v[2])" for v in [
+        (
+            OptionGroup(
+                FlagOption("-a"),
+                MutexGroup(
+                    CounterOption("-b"),
+                    Option("-c")
+                ),
+                Positional("x"),
+                OptionGroup(
+                    Positional("y"),
+                    Positional("z"),
+                ),
+            ),
+            "-a;-b;-c;x;y;z;",
+        ),
+    ]
+        root, trace = v
+        buf = IOBuffer()
+        CliOptions.foreach_options(root) do o
+            if !isa(o, CliOptions.AbstractOptionGroup)
+                print(buf, o.names[1])
+                print(buf, ';')
+            end
+        end
+        @test trace == String(take!(buf))
+    end
+
     @testset "CliOptionError; showerror" begin
         let ex = CliOptionError("foo bar")
             buf = IOBuffer()

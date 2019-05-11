@@ -59,7 +59,7 @@ function Base.iterate(o::AbstractOptionGroup)
 end
 
 function Base.iterate(o::AbstractOptionGroup, state)
-    state ≤ length(o.options) ? (o.options[state], state+1) : nothing
+    state ≤ length(o.options) ? (o.options[state], state + 1) : nothing
 end
 
 
@@ -183,8 +183,11 @@ end
 
 set_default!(result::ParseResult, o::Option) = nothing
 
-function consume!(result::ParseResult, o::Option, args, i)
+function consume!(result::ParseResult, all_options, o::Option, args, i)
     @assert 1 ≤ i ≤ length(args)
+    @assert "" ∉ o.names
+    @assert all(o isa AbstractOption for o in all_options)
+
     if args[i] ∉ o.names
         return 0
     end
@@ -273,8 +276,10 @@ function set_default!(result::ParseResult, o::FlagOption)
     foreach(k -> result._dict[encode(k)] = true, o.negators)
 end
 
-function consume!(result::ParseResult, o::FlagOption, args, i)
+function consume!(result::ParseResult, all_options, o::FlagOption, args, i)
     @assert 1 ≤ i ≤ length(args)
+    @assert "" ∉ o.names
+    @assert all(o isa AbstractOption for o in all_options)
 
     if startswith(args[i], "--")
         if args[i] ∈ o.names
@@ -375,8 +380,10 @@ function set_default!(result::ParseResult, o::CounterOption)
     foreach(k -> result._dict[encode(k)] = o.T(o.default), o.names)
 end
 
-function consume!(result::ParseResult, o::CounterOption, args, i)
+function consume!(result::ParseResult, all_options, o::CounterOption, args, i)
     @assert 1 ≤ i ≤ length(args)
+    @assert "" ∉ o.names
+    @assert all(o isa AbstractOption for o in all_options)
 
     diff = 0
     if startswith(args[i], "--")
@@ -447,8 +454,8 @@ end
 
 set_default!(result::ParseResult, o::HelpOption) = nothing
 
-function consume!(result::ParseResult, o::HelpOption, args, i)
-    consume!(result, o.flag, args, i)
+function consume!(result::ParseResult, all_options, o::HelpOption, args, i)
+    consume!(result, all_options, o.flag, args, i)
 end
 
 post_parse_action!(result, o::HelpOption) = nothing
@@ -518,9 +525,10 @@ end
 
 set_default!(result::ParseResult, o::Positional) = nothing
 
-function consume!(result::ParseResult, o::Positional, args, i)
+function consume!(result::ParseResult, all_options, o::Positional, args, i)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
+    @assert all(o isa AbstractOption for o in all_options)
 
     # Skip if this node is already processed
     count::Int = get(result._counter, o, 0)
@@ -533,7 +541,18 @@ function consume!(result::ParseResult, o::Positional, args, i)
     # Scan values to consume
     values = Vector{o.T}()
     for arg in args[i:(o.multiple ? length(args) : i)]
+        token_type = _check_option_name(arg)
+        if token_type == :valid
+            break  # Do not consume an argument which looks like an option
+        elseif token_type == :negative
+            if any(name == arg for opt in all_options for name in opt.names)
+                break  # Do not consume an option which looks like a negative number
+            end
+        end
         push!(values, _parse(o.T, arg, o.validator))
+    end
+    if length(values) == 0
+        return 0  # No arguments consumable
     end
 
     # Store parse result
@@ -594,9 +613,10 @@ end
 
 set_default!(result::ParseResult, o::RemainderOption) = nothing
 
-function consume!(result::ParseResult, o::RemainderOption, args, i)
+function consume!(result::ParseResult, all_options, o::RemainderOption, args, i)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
+    @assert all(o isa AbstractOption for o in all_options)
 
     # Skip if name does not match
     if args[i] ∉ o.names && !(args[i] == "--" && "--_remainders" in o.names)
@@ -643,9 +663,9 @@ function set_default!(result::ParseResult, o::OptionGroup)
     foreach(o -> set_default!(result, o), o.options)
 end
 
-function consume!(result::ParseResult, o::OptionGroup, args, i)
+function consume!(result::ParseResult, all_options, o::OptionGroup, args, i)
     for option in o.options
-        next_index = consume!(result, option, args, i)
+        next_index = consume!(result, all_options, option, args, i)
         if 0 < next_index
             return next_index
         end
@@ -694,9 +714,9 @@ function set_default!(result::ParseResult, o::MutexGroup)  # Same as from Option
     foreach(o -> set_default!(result, o), o.options)
 end
 
-function consume!(result::ParseResult, o::MutexGroup, args, i)  # Same as from OptionGroup
+function consume!(result::ParseResult, all_options, o::MutexGroup, args, i)  # Same as from OptionGroup
     for option in o.options
-        next_index = consume!(result, option, args, i)
+        next_index = consume!(result, all_options, option, args, i)
         if 0 < next_index
             return next_index
         end
@@ -828,6 +848,10 @@ patterns: ["*.log"]
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParseResult()
+    all_options = AbstractOption[]
+    foreach_options(spec.root) do o
+        push!(all_options, o)
+    end
 
     # Normalize argument list
     arguments = AbstractString[]
@@ -854,7 +878,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     # Parse arguments
     i = 1
     while i ≤ length(arguments)
-        next_index = consume!(result, spec.root, arguments, i)
+        next_index = consume!(result, all_options, spec.root, arguments, i)
         if next_index ≤ 0
             throw(CliOptionError("Unrecognized argument: \"$(arguments[i])\""))
         end
@@ -872,6 +896,15 @@ end
 
 # Internals
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
+
+function foreach_options(f, option::AbstractOption)
+    if option isa AbstractOptionGroup
+        for o in option.options
+            foreach_options(f, o)
+        end
+    end
+    f(option)
+end
 
 function _check_option_name(name)
     if "" == name

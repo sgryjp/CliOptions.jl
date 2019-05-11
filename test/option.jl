@@ -30,33 +30,33 @@ using CliOptions
     @testset "consume!(::Option)" begin
         option = Option("-d", "--depth")
         let result = CliOptions.ParseResult()
-            @test_throws AssertionError CliOptions.consume!(result, option, String[], 1)
+            @test_throws AssertionError CliOptions.consume!(result, [option], option, String[], 1)
         end
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, [""], 1)
+            next_index = CliOptions.consume!(result, [option], option, [""], 1)
             @test next_index == 0
             @test sorted_keys(result._dict) == String[]
         end
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-a"], 1)
             @test next_index == 0
             @test sorted_keys(result._dict) == String[]
         end
         let result = CliOptions.ParseResult()
-            @test_throws CliOptionError CliOptions.consume!(result, option, ["-d"], 1)
+            @test_throws CliOptionError CliOptions.consume!(result, [option], option, ["-d"], 1)
         end
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-d", "3"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-d", "3"], 1)
             @test next_index == 3
             @test sorted_keys(result._dict) == ["d", "depth"]
             @test result.d == "3"
             @test result.depth == "3"
         end
         let result = CliOptions.ParseResult()
-            @test_throws CliOptionError CliOptions.consume!(result, option, ["a", "-d"], 2)
+            @test_throws CliOptionError CliOptions.consume!(result, [option], option, ["a", "-d"], 2)
         end
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["a", "-d", "3"], 2)
+            next_index = CliOptions.consume!(result, [option], option, ["a", "-d", "3"], 2)
             @test next_index == 4
             @test sorted_keys(result._dict) == ["d", "depth"]
             @test result.d == "3"
@@ -67,7 +67,7 @@ using CliOptions
     @testset "consume!(::Option); type, constructible" begin
         let option = Option(Date, "-d", "--date")
             result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-d", "2006-01-02"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-d", "2006-01-02"], 1)
             @test next_index == 3
             @test result.date == Date(2006, 1, 2)
         end
@@ -76,45 +76,45 @@ using CliOptions
     @testset "consume!(::Option); type, parsable" begin
         let option = Option(UInt8, "-n", "--number")
             result = CliOptions.ParseResult()
-            @test_throws CliOptionError CliOptions.consume!(result, option, ["-n", "-1"], 1)
+            @test_throws CliOptionError CliOptions.consume!(result, [option], option, ["-n", "-1"], 1)
 
             result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-n", "0"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-n", "0"], 1)
             @test next_index == 3
             @test result.number == 0
 
             result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-n", "255"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-n", "255"], 1)
             @test next_index == 3
             @test result.number == 255
 
             result = CliOptions.ParseResult()
-            @test_throws CliOptionError CliOptions.consume!(result, option, ["-n", "256"], 1)
+            @test_throws CliOptionError CliOptions.consume!(result, [option], option, ["-n", "256"], 1)
         end
     end
 
     @testset "consume!(::Option); type, inconvertible" begin
         let option = Option(CliOptions.AbstractOption, "-a")
             result = CliOptions.ParseResult()
-            @test_throws CliOptionError CliOptions.consume!(result, option, ["-a", "b"], 1)
+            @test_throws CliOptionError CliOptions.consume!(result, [option], option, ["-a", "b"], 1)
         end
     end
 
     @testset "consume!(::Option); validator, Vector{String}" begin
         option = Option("-a", validator = ["foo", "bar"])
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a", "foo"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-a", "foo"], 1)
             @test next_index == 3
             @test result.a == "foo"
         end
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a", "bar"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-a", "bar"], 1)
             @test next_index == 3
             @test result.a == "bar"
         end
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["-a", "baz"], 1)
+                CliOptions.consume!(result, [option], option, ["-a", "baz"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("baz", ex.msg)
@@ -128,20 +128,20 @@ using CliOptions
     @testset "consume!(::Option); validator, Tuple{Vararg{Int}}" begin
         option = Option(Int, "-a", validator = (7, 13))
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a", "7"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-a", "7"], 1)
             @test next_index == 3
             @test result.a isa Int
             @test result.a == 7
         end
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a", "13"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-a", "13"], 1)
             @test next_index == 3
             @test result.a isa Int
             @test result.a == 13
         end
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["-a", "9"], 1)
+                CliOptions.consume!(result, [option], option, ["-a", "9"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("9", ex.msg)
@@ -155,18 +155,18 @@ using CliOptions
     @testset "consume!(::Option); validator, Regex" begin
         option = Option("-a", validator = Regex("qu+x"))
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a", "qux"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-a", "qux"], 1)
             @test next_index == 3
             @test result.a == "qux"
         end
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a", "quux"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-a", "quux"], 1)
             @test next_index == 3
             @test result.a == "quux"
         end
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["-a", "foo"], 1)
+                CliOptions.consume!(result, [option], option, ["-a", "foo"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("foo", ex.msg)
@@ -179,7 +179,7 @@ using CliOptions
     @testset "consume!(::Option); validator, String -> Bool" begin
         option = Option("-a", validator = s -> s == "foo")
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a", "foo"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-a", "foo"], 1)
             @test next_index == 3
             @test result.a == "foo"
         end
@@ -187,7 +187,7 @@ using CliOptions
         # String
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["-a", "bar"], 1)
+                CliOptions.consume!(result, [option], option, ["-a", "bar"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("bar", ex.msg)
@@ -199,7 +199,7 @@ using CliOptions
         option = Option(Int8, "-a", validator = n -> iseven(n))
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["-a", "7"], 1)
+                CliOptions.consume!(result, [option], option, ["-a", "7"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("Int8", ex.msg)
@@ -212,7 +212,7 @@ using CliOptions
     @testset "consume!(::Option); validator, String -> String" begin
         option = Option("-a", validator = s -> s == "foo" ? "" : "It's not foo")
         let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, option, ["-a", "foo"], 1)
+            next_index = CliOptions.consume!(result, [option], option, ["-a", "foo"], 1)
             @test next_index == 3
             @test result.a == "foo"
         end
@@ -220,7 +220,7 @@ using CliOptions
         # String
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["-a", "bar"], 1)
+                CliOptions.consume!(result, [option], option, ["-a", "bar"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("bar", ex.msg)
@@ -232,7 +232,7 @@ using CliOptions
         option = Option(Int8, "-a", validator = n -> iseven(n) ? "" : "must be even")
         let result = CliOptions.ParseResult()
             try
-                CliOptions.consume!(result, option, ["-a", "7"], 1)
+                CliOptions.consume!(result, [option], option, ["-a", "7"], 1)
             catch ex
                 @test ex isa CliOptionError
                 @test occursin("Int8", ex.msg)
