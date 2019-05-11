@@ -649,10 +649,9 @@ struct RemainderOption <: AbstractOption
     function RemainderOption(primary_name::AbstractString = "--",
                              secondary_name::AbstractString = "";
                              help::String = "Take all arguments following after")
-        names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
+        names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
         _validate_option_names(RemainderOption, names)
-        replace!(names, "--" => "--_remainders")
-        new(Tuple(names), help)
+        new(names, help)
     end
 end
 
@@ -664,7 +663,7 @@ function consume!(result::ParseResult, all_options, o::RemainderOption, args, i)
     @assert all(o isa AbstractOption for o in all_options)
 
     # Skip if name does not match
-    if args[i] ∉ o.names && !(args[i] == "--" && "--_remainders" in o.names)
+    if args[i] ∉ o.names
         return 0
     end
 
@@ -674,7 +673,8 @@ function consume!(result::ParseResult, all_options, o::RemainderOption, args, i)
         push!(values, arg)
     end
     for name in o.names
-        result._dict[encode(name)] = values
+        key = encode(name == "--" ? "--_remainders" : name)
+        result._dict[key] = values
     end
 
     # Update counter
@@ -684,22 +684,29 @@ function consume!(result::ParseResult, all_options, o::RemainderOption, args, i)
 end
 
 function post_parse_action!(result, o::RemainderOption)
-    # Set an empty array if not register
+    # Set an empty array if unused
     if get(result._counter, o, 0) < 1
-        foreach(k -> result._dict[encode(k)] = AbstractString[], o.names)
+        for name in o.names
+            key = encode(name == "--" ? "--_remainders" : name)
+            result._dict[key] = AbstractString[]
+        end
     end
 end
 
 function to_usage_tokens(o::RemainderOption)
-    name = o.names[1]
-    name = uppercase(name == "--_remainders" ? "--" : name)
-    ["[$name ARGUMENT [ARGUMENT...]]"]
+    ["[$(uppercase(o.names[1])) ARGUMENT [ARGUMENT...]]"]
 end
 
 function print_description(io::IO, o::RemainderOption)
-    name = o.names[1]
-    name = uppercase(name == "--_remainders" ? "--" : name)
-    print_description(io, (name,), "", o.help)
+    print_description(io, o.names, "", o.help)
+end
+
+function Base.show(io::IO, x::RemainderOption)
+    print(io, "RemainderOption(")
+    print(io, join([":" * encode(name == "--" ? "--_remainders" : name)
+                    for name in x.names],
+                   ','))
+    print(io, ")")
 end
 
 

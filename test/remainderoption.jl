@@ -19,7 +19,7 @@ using CliOptions
     end
 
     @testset "ctor; $(v[1])" for v in [
-        (String[], ("--_remainders",)),
+        (String[], ("--",)),
         (["-x", "--exec"], ("-x", "--exec")),
     ]
         names, expected_names = v
