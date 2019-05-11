@@ -1,5 +1,6 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
+coverage.info
 deps/deps.jl
 docs/build
