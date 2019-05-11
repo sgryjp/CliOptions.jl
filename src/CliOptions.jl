@@ -440,6 +440,7 @@ to exit. Such behavior must be implemented manually by programmers.
 struct HelpOption <: AbstractOption
     names
     flag::FlagOption
+    help::String
 
     function HelpOption(names::String...; help = "")
         help = help == "" ? "Show usage message and exit" : help
@@ -448,11 +449,13 @@ struct HelpOption <: AbstractOption
         end
         _validate_option_names(HelpOption, names)  # for error message
         flag = FlagOption(names...; help = help)
-        new(flag.names, flag)
+        new(flag.names, flag, help)
     end
 end
 
-set_default!(result::ParseResult, o::HelpOption) = nothing
+function set_default!(result::ParseResult, o::HelpOption)
+    set_default!(result, o.flag)
+end
 
 function consume!(result::ParseResult, all_options, o::HelpOption, args, i)
     consume!(result, all_options, o.flag, args, i)
@@ -597,13 +600,55 @@ end
 Base.show(x::Positional) = show(stdout, x)
 
 
+"""
+    RemainderOption(primary_name = "--"[, secondary_name];
+                    [help::String])
+
+An option type which takes all the following arguments as its value. It is similar to
+`Positional` with `multiple` parameter is set `true`, but `RemainderOption` never stop
+taking following arguments, even if there is an argument looking like an option.
+
+The default name of a `RemainderOption` is `--` but any valid option name such as `-x` or
+`--exec` can be assigned. Note that using `--` is tricky since it also has special meaning
+for `julia` command itself. To give `--` to a program, we need to use `--` before program
+file name (see the example below.)
+
+Typical usage of this type is to create a utility command which executes another command.
+
+#### Example: A command which executes another command for multiple times
+
+```julia
+# examples/execmany.jl
+using CliOptions
+
+spec = CliOptionSpec(
+    Option(Int, "-n", "--times"; default = 1,
+           help = "Number of times to execute the command"),
+    RemainderOption(help = "Command line arguments to execute"),
+)
+args = parse_args(spec)
+for _ in 1:args.times
+    cmd = Cmd(String[a for a in args._remainders])
+    run(cmd)
+end
+```
+
+Example usage of this command:
+
+```shell
+\$ julia -- examples/execmany.jl -n 3 -- julia --version
+julia version 1.0.3
+julia version 1.0.3
+julia version 1.0.3
+```
+"""
 struct RemainderOption <: AbstractOption
     names::Union{Tuple{AbstractString},Tuple{AbstractString,AbstractString}}
     help::String
 
     function RemainderOption(primary_name::AbstractString = "--",
                              secondary_name::AbstractString = "";
-                             help::String = "Stop option scanning")
+                             help::String = "Take all arguments following after")
         names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
         _validate_option_names(RemainderOption, names)
         replace!(names, "--" => "--_remainders")
@@ -643,6 +688,18 @@ function post_parse_action!(result, o::RemainderOption)
     if get(result._counter, o, 0) < 1
         foreach(k -> result._dict[encode(k)] = AbstractString[], o.names)
     end
+end
+
+function to_usage_tokens(o::RemainderOption)
+    name = o.names[1]
+    name = uppercase(name == "--_remainders" ? "--" : name)
+    ["[$name ARGUMENT [ARGUMENT...]]"]
+end
+
+function print_description(io::IO, o::RemainderOption)
+    name = o.names[1]
+    name = uppercase(name == "--_remainders" ? "--" : name)
+    print_description(io, (name,), "", o.help)
 end
 
 
