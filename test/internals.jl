@@ -71,6 +71,23 @@ using CliOptions: encode
         @test trace == String(take!(buf))
     end
 
+    @testset "_normalize_args(); $(v[1])" for v in [
+        (["ab"], ["ab"]),
+        (["-ab"], ["-a", "-b"]),
+        (["--ab"], ["--ab"]),
+        (["--ab="], ["--ab", ""]),
+        (["--ab=c"], ["--ab", "c"]),
+        (["--ab=c="], CliOptionError),
+    ]
+        args, expected = v
+        if expected isa Type
+            @test_throws expected CliOptions._normalize_args(args)
+        else
+            normalized = CliOptions._normalize_args(args)
+            @test normalized == expected
+        end
+    end
+
     @testset "CliOptionError; showerror" begin
         let ex = CliOptionError("foo bar")
             buf = IOBuffer()

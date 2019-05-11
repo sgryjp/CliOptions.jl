@@ -905,39 +905,25 @@ patterns: ["*.log"]
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParseResult()
+
+    # Make a vector of all registered options
     all_options = AbstractOption[]
     foreach_options(spec.root) do o
         push!(all_options, o)
     end
 
     # Normalize argument list
-    arguments = AbstractString[]
-    for i = 1:length(args)
-        if !startswith(args[i], '-')
-            push!(arguments, args[i])  # -a
-        elseif startswith(args[i], "--")
-            kv = split(args[i], '=')
-            if length(kv) == 1
-                push!(arguments, args[i])  # --foo-bar
-            elseif length(kv) == 2
-                push!(arguments, kv[1], kv[2])  # --foo-bar=baz
-            else
-                throw(CliOptionError("Unrecognizable option string: \"$(args[i])\""))
-            end
-        elseif startswith(args[i], '-')
-            append!(arguments, ["-$c" for c ∈ args[i][2:end]])  # -abc ==> -a -b -c
-        end
-    end
+    args = _normalize_args(args)
 
     # Setup default values
     foreach(o -> set_default!(result, o), spec.root)
 
     # Parse arguments
     i = 1
-    while i ≤ length(arguments)
-        next_index = consume!(result, all_options, spec.root, arguments, i)
+    while i ≤ length(args)
+        next_index = consume!(result, all_options, spec.root, args, i)
         if next_index ≤ 0
-            throw(CliOptionError("Unrecognized argument: \"$(arguments[i])\""))
+            throw(CliOptionError("Unrecognized argument: \"$(args[i])\""))
         end
 
         i = next_index
@@ -961,6 +947,27 @@ function foreach_options(f, option::AbstractOption)
         end
     end
     f(option)
+end
+
+function _normalize_args(args)
+    normalized = String[]
+    for i = 1:length(args)
+        if !startswith(args[i], '-')
+            push!(normalized, args[i])
+        elseif startswith(args[i], "--")
+            kv = split(args[i], '=')
+            if length(kv) == 1
+                push!(normalized, args[i])  # --foo-bar
+            elseif length(kv) == 2
+                push!(normalized, kv[1], kv[2])  # --foo-bar=baz
+            else
+                throw(CliOptionError("Unrecognizable option string: \"$(args[i])\""))
+            end
+        elseif startswith(args[i], '-')
+            append!(normalized, ["-$c" for c in args[i][2:end]])  # -abc ==> -a -b -c
+        end
+    end
+    return normalized
 end
 
 function _check_option_name(name)
