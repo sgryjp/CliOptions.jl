@@ -168,7 +168,7 @@ struct Option <: AbstractOption
     help::String
 
     function Option(T::Type, primary_name::String, secondary_name::String = "";
-                    default = nothing, validator = nothing, help = "")
+                    default::Any = nothing, validator::Any = nothing, help::String = "")
         names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
         _validate_option_names(Option, names)
         new(names, T, validator, default, help)
@@ -176,12 +176,16 @@ struct Option <: AbstractOption
 end
 
 function Option(primary_name::String, secondary_name::String = "";
-                default = nothing, validator = nothing, help = "")
+                default::Any = nothing, validator::Any = nothing, help::String = "")
     Option(String, primary_name, secondary_name;
            default = default, validator = validator, help = help)
 end
 
-set_default!(result::ParseResult, o::Option) = nothing
+function set_default!(result::ParseResult, o::Option)
+    for name in o.names
+        result._dict[encode(name)] = o.default
+    end
+end
 
 function consume!(result::ParseResult, all_options, o::Option, args, i)
     @assert 1 ≤ i ≤ length(args)
@@ -217,10 +221,8 @@ function post_parse_action!(result, o::Option)
         return
     end
 
-    # Apply deafult value or throw error if no default is set
-    if o.default !== nothing
-        foreach(k -> result._dict[encode(k)] = o.default, o.names)
-    else
+    # Throw if not omittable
+    if o.default === nothing
         msg = "Option \"$(o.names[1])\" must be specified"
         throw(CliOptionError(msg))
     end
@@ -529,7 +531,11 @@ function Positional(singular_name::String,
                multiple = multiple, validator = validator, default = default, help = help)
 end
 
-set_default!(result::ParseResult, o::Positional) = nothing
+function set_default!(result::ParseResult, o::Positional)
+    for name in o.names
+        result._dict[encode(name)] = o.default
+    end
+end
 
 function consume!(result::ParseResult, all_options, o::Positional, args, i)
     @assert 1 ≤ i ≤ length(args)
@@ -575,12 +581,10 @@ function post_parse_action!(result, o::Positional)
         return
     end
 
-    # Apply deafult value or throw error if no default is set
+    # Throw if not omittable
     if o.default === nothing
         msg = "\"$(o.names[1])\" must be specified"
         throw(CliOptionError(msg))
-    else
-        foreach(k -> result._dict[encode(k)] = o.default, o.names)
     end
 end
 
@@ -658,7 +662,12 @@ struct RemainderOption <: AbstractOption
     end
 end
 
-set_default!(result::ParseResult, o::RemainderOption) = nothing
+function set_default!(result::ParseResult, o::RemainderOption)
+    for name in o.names
+        key = encode(name == "--" ? "--_remainders" : name)
+        result._dict[key] = AbstractString[]
+    end
+end
 
 function consume!(result::ParseResult, all_options, o::RemainderOption, args, i)
     @assert 1 ≤ i ≤ length(args)
@@ -686,15 +695,7 @@ function consume!(result::ParseResult, all_options, o::RemainderOption, args, i)
     return length(args) + 1
 end
 
-function post_parse_action!(result, o::RemainderOption)
-    # Set an empty array if unused
-    if get(result._counter, o, 0) < 1
-        for name in o.names
-            key = encode(name == "--" ? "--_remainders" : name)
-            result._dict[key] = AbstractString[]
-        end
-    end
-end
+post_parse_action!(result, o::RemainderOption) = nothing
 
 function to_usage_tokens(o::RemainderOption)
     ["[$(uppercase(o.names[1])) ARGUMENT [ARGUMENT...]]"]

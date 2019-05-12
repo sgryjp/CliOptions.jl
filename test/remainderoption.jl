@@ -67,18 +67,4 @@ using CliOptions
         @test next_index == expected_next_index
         @test getproperty(result, property) == expected_values
     end
-
-    @testset "post_parse_action!(); consumed nothing; $(v[1])" for v in [
-        ([], [:_remainders], AbstractString[]),
-        (["-x", "--exec"], [:x, :exec], AbstractString[]),
-    ]
-        names, keys, values = v
-        result = CliOptions.ParseResult()
-        option = RemainderOption(names...)
-        CliOptions.post_parse_action!(result, option)
-        for k in keys
-            @test k in propertynames(result)
-            @test getproperty(result, k) == values
-        end
-    end
 end

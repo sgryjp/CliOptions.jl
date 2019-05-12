@@ -230,9 +230,13 @@ using CliOptions
         )
         @test_throws CliOptionError parse_args(spec, String[])
         args = parse_args(spec, split("-a foo"))
-        @test args._dict == Dict("a" => "foo")
+        @test args.a == "foo"
+        @test args.b === nothing
+        @test args.c === nothing
         args = parse_args(spec, split("-b bar"))
-        @test args._dict == Dict("b" => "bar")
+        @test args.a === nothing
+        @test args.b == "bar"
+        @test args.c === nothing
         @test_throws CliOptionError parse_args(spec, split("-a foo -b bar"))
         @test_throws CliOptionError parse_args(spec, split("-a foo -c baz"))
         @test_throws CliOptionError parse_args(spec, split("-a foo -b bar -c baz"))
