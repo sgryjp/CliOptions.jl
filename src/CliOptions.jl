@@ -429,20 +429,23 @@ end
 
 
 """
-    HelpOption(names = ("-h", "--help"); help = "")
+    HelpOption(names = ("-h", "--help"); [help::String])
 
 Options for printing help (usage) message.
 
-This option is a customized [`FlagOption`](@ref). Although the default help message is
-"show usage message and exit", CliOptions does not force program to print usage message nor
-to exit. Such behavior must be implemented manually by programmers.
+The default value of `names` are `-h` and `--help`. If you do not like to have `-h` for
+printing help message, just give `--help` for `names` parameter (i.e.:
+`HelpOption("--help"; ...)`).
+
+The default behavior for a help option is printing help message and exiting. If you do not
+like this behavior, use `onhelp` parameter on constructing [`CliOptionSpec`](@ref).
 """
 struct HelpOption <: AbstractOption
     names
     flag::FlagOption
     help::String
 
-    function HelpOption(names::String...; help = "")
+    function HelpOption(names::String...; help::String = "")
         help = help == "" ? "Show usage message and exit" : help
         if length(names) == 0
             names = ("-h", "--help")
@@ -830,19 +833,61 @@ end
 
 
 """
-    CliOptionSpec(options::AbstractOption...; program = PROGRAM_FILE)
+    CliOptionSpec(options::AbstractOption...;
+                  program = PROGRAM_FILE,
+                  onhelp = 0)
 
 A type representing a command line option specification.
+
+`program` parameter is used for the program name which appears in help (usage) message. If
+omitted, `Base.PROGRAM_FILE` will be used.
+
+`onhelp` parameter controls what to do if a [`HelpOption`](@ref) was used. It can be either:
+
+1. An `Integer`
+   - The running program will print help message and exit using the status code.
+2. `nothing`
+   - Nothing happens. In this case, the `HelpOption` is treated just like a `FlagOption` so
+     you can examine whether it was used or not by examining `ParseResult` using its name.
+3. A function which takes no arguments
+   - Do whatever you want in the function.
+
+The default value is `0`.
+
+#### Example: Using a function for `onhelp` parameter
+
+```jldoctest
+using CliOptions
+
+spec = CliOptionSpec(
+    HelpOption(),
+    onhelp = () -> begin
+        print_usage(spec, verbose = false)
+        # exit(42)  # Use exit() to let the program exit inside parse_args()
+    end,
+    program = "onhelptest.jl"
+)
+args = parse_args(spec, ["-h"])  # The program does not exit here
+println(args.help)
+
+# output
+
+Usage: onhelptest.jl [-h]
+true
+```
 """
 struct CliOptionSpec
     root::OptionGroup
     program::String
+    onhelp::Any
 
-    function CliOptionSpec(options::AbstractOption...; program = PROGRAM_FILE)
+    function CliOptionSpec(options::AbstractOption...;
+                           program = PROGRAM_FILE,
+                           onhelp = 0)
         if program == ""
-            program = "PROGRAM"
+            program = "PROGRAM"  # may be called inside REPL
         end
-        new(OptionGroup(options...), program)
+        new(OptionGroup(options...), program, onhelp)
     end
 end
 
@@ -867,7 +912,10 @@ function print_usage(io::IO, spec::CliOptionSpec; verbose = true)
         print_description(io, spec.root)
     end
 end
-print_usage(spec::CliOptionSpec) = print_usage(stdout, spec)
+
+function print_usage(spec::CliOptionSpec; verbose = true)
+    print_usage(stdout, spec, verbose = verbose)
+end
 
 
 """
@@ -913,14 +961,38 @@ patterns: ["*.log"]
 function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParseResult()
 
-    # Make a vector of all registered options
+    # Store all options in a vector and pick special options
+    help_option = nothing
+    remainders_option = nothing
     all_options = AbstractOption[]
     foreach_options(spec.root) do o
         push!(all_options, o)
+        if o isa HelpOption
+            help_option = o
+        elseif o isa RemainderOption
+            remainders_option = o
+        end
     end
 
     # Normalize argument list
     args = _normalize_args(args)
+
+    # Scan arguments for special options
+    if help_option !== nothing
+        for i = 1:length(args)
+            if args[i] in help_option.names
+                # Found a help option
+                if spec.onhelp isa Integer
+                    print_usage(stdout, spec)
+                    _exit(spec.onhelp)
+                elseif spec.onhelp !== nothing
+                    spec.onhelp()
+                end
+            elseif remainders_option !== nothing && args[i] in remainders_option.names
+                break
+            end
+        end
+    end
 
     # Setup default values
     foreach(o -> set_default!(result, o), spec.root)

@@ -98,6 +98,26 @@ using CliOptions
         end
     end
 
+
+    @testset "HelpOption; nothing" begin
+        let spec = CliOptionSpec(
+            HelpOption(),
+            onhelp = nothing
+        )
+            result = parse_args(spec, ["-h"])
+            @test result.help == true
+        end
+    end
+
+    @testset "HelpOption; Function" begin
+        let spec = CliOptionSpec(
+            HelpOption(),
+            onhelp = () -> error("foo"),
+        )
+            @test_throws ErrorException parse_args(spec, ["-h"])
+        end
+    end
+
     @testset "Positional; $(v[1]), $(v[4])" for v in [
         # single, required
         ("single, required", false, nothing, String[], CliOptionError),

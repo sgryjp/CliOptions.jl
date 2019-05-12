@@ -42,6 +42,12 @@ Positional
 RemainderOption
 ```
 
+## `HelpOption`
+
+```@docs
+HelpOption
+```
+
 ## `OptionGroup`
 
 ```@docs
