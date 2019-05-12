@@ -836,10 +836,11 @@ omitted, `Base.PROGRAM_FILE` will be used.
 `onhelp` parameter controls what to do if a [`HelpOption`](@ref) was used. It can be either:
 
 1. An `Integer`
-   - The running program will print help message and exit using the status code.
+   - The running program will print help message and exit using it as the status code.
 2. `nothing`
-   - Nothing happens. In this case, the `HelpOption` is treated just like a `FlagOption` so
-     you can examine whether it was used or not by examining `ParseResult` using its name.
+   - Nothing happens. In this case, the `HelpOption` is treated just like a
+     [`FlagOption`](@ref) so you can examine whether it was used or not by examining
+     [`ParseResult`](@ref) using its name.
 3. A function which takes no arguments
    - Do whatever you want in the function.
 
