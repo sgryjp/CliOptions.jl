@@ -98,6 +98,24 @@ using CliOptions
         end
     end
 
+    @testset "HelpOption; Integer" begin
+        let spec = CliOptionSpec(
+            HelpOption(),
+            onhelp = 42
+        )
+            CliOptions._mock_exit_function((c) -> error("$c"))
+            try
+                buf = IOBuffer()
+                redirect_stdout(buf) do
+                    @test_throws ErrorException parse_args(spec, ["-h"])
+                end
+                output = String(take!(buf))
+                @test output[1:6] == "Usage:"
+            finally
+                CliOptions._mock_exit_function(Base.exit)
+            end
+        end
+    end
 
     @testset "HelpOption; nothing" begin
         let spec = CliOptionSpec(

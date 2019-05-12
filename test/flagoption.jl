@@ -29,13 +29,23 @@ using CliOptions
         @test option.negators == ["-c", "-d"]
     end
 
-    @testset "show(::FlagOption); $(join(v[1],','))" for v in [
+    @testset "show(x); $(join(v[1],','))" for v in [
         (["-a"], "FlagOption(:a)"),
         (["-a", "--foo-bar"], "FlagOption(:a,:foo_bar)"),
     ]
         names, expected_repr = v
         option = FlagOption(names...)
         @test repr(option) == expected_repr
+    end
+
+    @testset "show(io, x)" begin
+        let option = FlagOption("-a")
+            buf = IOBuffer()
+            redirect_stdout(buf) do
+                show(option)
+            end
+            @test String(take!(buf)) == "FlagOption(:a)"
+        end
     end
 
     @testset "consume(::FlagOption)" begin

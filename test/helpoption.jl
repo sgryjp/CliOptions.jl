@@ -20,18 +20,24 @@ using CliOptions
         end
     end
 
-    @testset "show(); $(v[1])" for v in [
+    @testset "show(x); $(v[1])" for v in [
         ([], "HelpOption(:h,:help)"),
         (["-a"], "HelpOption(:a)"),
         (["-a", "--foo-bar"], "HelpOption(:a,:foo_bar)"),
     ]
         names, expected_repr = v
-        if length(names) == 0
-            option = HelpOption()
-        else
-            option = HelpOption(names...)
-        end
+        option = HelpOption(names...)
         @test repr(option) == expected_repr
+    end
+
+    @testset "show(io, x)" begin
+        let option = HelpOption()
+            buf = IOBuffer()
+            redirect_stdout(buf) do
+                show(option)
+            end
+            @test String(take!(buf)) == "HelpOption(:h,:help)"
+        end
     end
 
     @testset "consume(); $(v[1])" for v in [

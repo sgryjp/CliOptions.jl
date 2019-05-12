@@ -28,13 +28,23 @@ using CliOptions: consume!
         end
     end
 
-    @testset "show(); $(v[1])" for v in [
+    @testset "show(x); $(v[1])" for v in [
         (["file"], "Positional(:file)"),
         (["file", "files"], "Positional(:file,:files)"),
     ]
         names, expected_repr = v
         option = Positional(names...)
         @test repr(option) == expected_repr
+    end
+
+    @testset "show(io, x)" begin
+        let option = Positional("file")
+            buf = IOBuffer()
+            redirect_stdout(buf) do
+                show(option)
+            end
+            @test String(take!(buf)) == "Positional(:file)"
+        end
     end
 
     @testset "consume!(); $(v[1]), $(v[3])" for v in [

@@ -27,7 +27,7 @@ using CliOptions
         @test option.names == expected_names
     end
 
-    @testset "show(); $(join(v[1],','))" for v in [
+    @testset "show(x); $(join(v[1],','))" for v in [
         ([], "RemainderOption(:_remainders)"),
         (["-x"], "RemainderOption(:x)"),
         (["-x", "--exec"], "RemainderOption(:x,:exec)"),
@@ -35,6 +35,16 @@ using CliOptions
         names, expected_repr = v
         option = RemainderOption(names...)
         @test repr(option) == expected_repr
+    end
+
+    @testset "show(io, x)" begin
+        let option = RemainderOption()
+            buf = IOBuffer()
+            redirect_stdout(buf) do
+                show(option)
+            end
+            @test String(take!(buf)) == "RemainderOption(:_remainders)"
+        end
     end
 
     @testset "consume(); args = Any[]" begin

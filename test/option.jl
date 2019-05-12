@@ -18,13 +18,23 @@ using CliOptions
         @test Option(UInt32, "-a").T == UInt32
     end
 
-    @testset "show(::Option); $(join(v[1],','))" for v in [
+    @testset "show(x); $(join(v[1],','))" for v in [
         (["-a"], "Option(:a)"),
         (["-a", "--foo-bar"], "Option(:a,:foo_bar)"),
     ]
         names, expected_repr = v
         option = Option(names...)
         @test repr(option) == expected_repr
+    end
+
+    @testset "show(io, x)" begin
+        let option = Option("-a")
+            buf = IOBuffer()
+            redirect_stdout(buf) do
+                show(option)
+            end
+            @test String(take!(buf)) == "Option(:a)"
+        end
     end
 
     @testset "consume!(::Option)" begin

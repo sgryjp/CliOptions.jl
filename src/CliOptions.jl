@@ -1028,6 +1028,13 @@ function foreach_options(f, option::AbstractOption)
     f(option)
 end
 
+_exit = Base.exit
+
+function _mock_exit_function(f)
+    global _exit
+    _exit = f
+end
+
 function _normalize_args(args)
     normalized = String[]
     for i = 1:length(args)
