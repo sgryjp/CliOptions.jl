@@ -252,25 +252,25 @@ using CliOptions
         end
     end
 
-    @testset "post_parse_action!(::Option)" begin
+    @testset "check_usage_count(::Option)" begin
         # Once evaluated
         let result = CliOptions.ParseResult()
             option = Option("-n", default = nothing)
             result._counter[option] = 1
-            CliOptions.post_parse_action!(result, option)
+            CliOptions.check_usage_count(result, option)
             @test true  # No exception was thrown
         end
 
         # Not evaluated, no default value
         let result = CliOptions.ParseResult()
             option = Option("-n", default = nothing)
-            @test_throws CliOptionError CliOptions.post_parse_action!(result, option)
+            @test_throws CliOptionError CliOptions.check_usage_count(result, option)
         end
 
         # Not evaluated, default value was set
         let result = CliOptions.ParseResult()
             option = Option("-n"; default = "foo")
-            CliOptions.post_parse_action!(result, option)
+            CliOptions.check_usage_count(result, option)
             @test true  # No exception was thrown
         end
     end

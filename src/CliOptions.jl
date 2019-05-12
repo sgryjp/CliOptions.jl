@@ -215,14 +215,9 @@ function consume!(result::ParseResult, all_options, o::Option, args, i)
     i + 2
 end
 
-function post_parse_action!(result, o::Option)
-    # Do nothing if it was already parsed
-    if 1 ≤ get(result._counter, o, 0)
-        return
-    end
-
-    # Throw if not omittable
-    if o.default === nothing
+function check_usage_count(result, o::Option)
+    # Throw if it's required but was omitted
+    if o.default === nothing && get(result._counter, o, 0) ≤ 0
         msg = "Option \"$(o.names[1])\" must be specified"
         throw(CliOptionError(msg))
     end
@@ -314,7 +309,7 @@ function consume!(result::ParseResult, all_options, o::FlagOption, args, i)
     i + 1
 end
 
-post_parse_action!(result, o::FlagOption) = nothing
+check_usage_count(result, o::FlagOption) = nothing
 
 function to_usage_tokens(o::FlagOption)
     latter_part = 1 ≤ length(o.negators) ? " | " * o.negators[1] : ""
@@ -415,7 +410,7 @@ function consume!(result::ParseResult, all_options, o::CounterOption, args, i)
     i + 1
 end
 
-post_parse_action!(result, o::CounterOption) = nothing
+check_usage_count(result, o::CounterOption) = nothing
 
 function to_usage_tokens(o::CounterOption)
     latter_part = 1 ≤ length(o.decrementers) ? " | " * o.decrementers[1] : ""
@@ -466,7 +461,7 @@ function consume!(result::ParseResult, all_options, o::HelpOption, args, i)
     consume!(result, all_options, o.flag, args, i)
 end
 
-post_parse_action!(result, o::HelpOption) = nothing
+check_usage_count(result, o::HelpOption) = nothing
 
 function to_usage_tokens(o::HelpOption)
     ["[" * o.names[1] * "]"]
@@ -575,14 +570,9 @@ function consume!(result::ParseResult, all_options, o::Positional, args, i)
     return i + length(values)
 end
 
-function post_parse_action!(result, o::Positional)
-    # Do nothing if it was already parsed
-    if 1 ≤ get(result._counter, o, 0)
-        return
-    end
-
-    # Throw if not omittable
-    if o.default === nothing
+function check_usage_count(result, o::Positional)
+    # Throw if it's required but was omitted
+    if o.default === nothing && get(result._counter, o, 0) ≤ 0
         msg = "\"$(o.names[1])\" must be specified"
         throw(CliOptionError(msg))
     end
@@ -695,7 +685,7 @@ function consume!(result::ParseResult, all_options, o::RemainderOption, args, i)
     return length(args) + 1
 end
 
-post_parse_action!(result, o::RemainderOption) = nothing
+check_usage_count(result, o::RemainderOption) = nothing
 
 function to_usage_tokens(o::RemainderOption)
     ["[$(uppercase(o.names[1])) ARGUMENT [ARGUMENT...]]"]
@@ -741,9 +731,9 @@ function consume!(result::ParseResult, all_options, o::OptionGroup, args, i)
     return 0
 end
 
-function post_parse_action!(result, o::OptionGroup)
+function check_usage_count(result, o::OptionGroup)
     for option in o.options
-        post_parse_action!(result, option)
+        check_usage_count(result, option)
     end
 end
 
@@ -792,11 +782,11 @@ function consume!(result::ParseResult, all_options, o::MutexGroup, args, i)  # S
     return 0
 end
 
-function post_parse_action!(result, o::MutexGroup)
-    exceptions = Vector{Exception}()
+function check_usage_count(result, o::MutexGroup)
+    exceptions = Exception[]
     for option in o.options
         try
-            post_parse_action!(result, option)
+            check_usage_count(result, option)
         catch ex
             push!(exceptions, ex)
         end
@@ -1011,7 +1001,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
 
     # Take care of omitted options
     for option ∈ (o for o in spec.root.options if get(result._counter, o, 0) ≤ 0)
-        post_parse_action!(result, option)
+        check_usage_count(result, option)
     end
 
     result
