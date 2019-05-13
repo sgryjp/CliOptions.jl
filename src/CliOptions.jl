@@ -199,13 +199,8 @@ function consume!(result::ParseResult, all_options, o::Option, args, i)
         throw(CliOptionError("A value is needed for option \"$(args[i])\""))
     end
 
-    # Get how many times this option was evaluated
+    # Update counter
     count::Int = get!(result._counter, o, 0)
-
-    # Skip if this node is already processed
-    if 1 ≤ count
-        return 0
-    end
     result._counter[o] += 1
 
     value = _parse(o.T, args[i + 1], o.validator, args[i])
