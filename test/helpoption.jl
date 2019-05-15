@@ -49,10 +49,11 @@ using CliOptions
         args, expected = v
         option = HelpOption()
         result = CliOptions.ParseResult()
+        ctx = CliOptions.ParseContext()
         if expected isa Type
-            @test_throws expected CliOptions.consume!(result, [option], option, args, 1)
+            @test_throws expected CliOptions.consume!(result, option, args, 1, ctx)
         else
-            next_index = CliOptions.consume!(result, [option], option, args, 1)
+            next_index = CliOptions.consume!(result, option, args, 1, ctx)
             @test next_index == 1 + length(args)
             @test result.help == expected
         end

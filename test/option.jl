@@ -37,240 +37,118 @@ using CliOptions
         end
     end
 
-    @testset "consume!(::Option)" begin
+    @testset "consume!(); $(v[1])" for v in [
+        ([""], (0, nothing)),
+        (["-a"], (0, nothing)),
+        (["-d"], CliOptionError),
+        (["-d", "3"], (3, "3")),
+    ]
+        args, expected = v
         option = Option("-d", "--depth")
-        let result = CliOptions.ParseResult()
-            @test_throws AssertionError CliOptions.consume!(result, [option], option, String[], 1)
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, [""], 1)
-            @test next_index == 0
-            @test sorted_keys(result._dict) == String[]
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-a"], 1)
-            @test next_index == 0
-            @test sorted_keys(result._dict) == String[]
-        end
-        let result = CliOptions.ParseResult()
-            @test_throws CliOptionError CliOptions.consume!(result, [option], option, ["-d"], 1)
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-d", "3"], 1)
-            @test next_index == 3
-            @test sorted_keys(result._dict) == ["d", "depth"]
-            @test result.d == "3"
-            @test result.depth == "3"
-        end
-        let result = CliOptions.ParseResult()
-            @test_throws CliOptionError CliOptions.consume!(result, [option], option, ["a", "-d"], 2)
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["a", "-d", "3"], 2)
-            @test next_index == 4
-            @test sorted_keys(result._dict) == ["d", "depth"]
-            @test result.d == "3"
-            @test result.depth == "3"
-        end
-    end
-
-    @testset "consume!(::Option); type, constructible" begin
-        let option = Option(Date, "-d", "--date")
-            result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-d", "2006-01-02"], 1)
-            @test next_index == 3
-            @test result.date == Date(2006, 1, 2)
-        end
-    end
-
-    @testset "consume!(::Option); type, parsable" begin
-        let option = Option(UInt8, "-n", "--number")
-            result = CliOptions.ParseResult()
-            @test_throws CliOptionError CliOptions.consume!(result, [option], option, ["-n", "-1"], 1)
-
-            result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-n", "0"], 1)
-            @test next_index == 3
-            @test result.number == 0
-
-            result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-n", "255"], 1)
-            @test next_index == 3
-            @test result.number == 255
-
-            result = CliOptions.ParseResult()
-            @test_throws CliOptionError CliOptions.consume!(result, [option], option, ["-n", "256"], 1)
-        end
-    end
-
-    @testset "consume!(::Option); type, inconvertible" begin
-        let option = Option(CliOptions.AbstractOption, "-a")
-            result = CliOptions.ParseResult()
-            @test_throws CliOptionError CliOptions.consume!(result, [option], option, ["-a", "b"], 1)
-        end
-    end
-
-    @testset "consume!(::Option); validator, Vector{String}" begin
-        option = Option("-a", validator = ["foo", "bar"])
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-a", "foo"], 1)
-            @test next_index == 3
-            @test result.a == "foo"
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-a", "bar"], 1)
-            @test next_index == 3
-            @test result.a == "bar"
-        end
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["-a", "baz"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("baz", ex.msg)
-                @test occursin("must be one of", ex.msg)
-                @test occursin("foo", ex.msg)
-                @test occursin("bar", ex.msg)
+        result = CliOptions.ParseResult()
+        ctx = CliOptions.ParseContext()
+        if expected isa Type
+            @test_throws expected CliOptions.consume!(result, option, args, 1, ctx)
+        else
+            next_index = CliOptions.consume!(result, option, args, 1, ctx)
+            @test next_index == expected[1]
+            if expected[2] !== nothing
+                @test result.d == expected[2]
+                @test result.depth == expected[2]
             end
         end
     end
 
-    @testset "consume!(::Option); validator, Tuple{Vararg{Int}}" begin
-        option = Option(Int, "-a", validator = (7, 13))
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-a", "7"], 1)
-            @test next_index == 3
-            @test result.a isa Int
-            @test result.a == 7
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-a", "13"], 1)
-            @test next_index == 3
-            @test result.a isa Int
-            @test result.a == 13
-        end
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["-a", "9"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("9", ex.msg)
-                @test occursin("must be one of", ex.msg)
-                @test occursin("7", ex.msg)
-                @test occursin("13", ex.msg)
-            end
+    @testset "consume!(); type, $(v[1])" for v in [
+        # ctor
+        ("constructible", Date, ["-a", "2006-01-02"], (3, Date(2006, 1, 2))),
+
+        # Base.parse
+        ("parsable, -1", UInt8, ["-a", "-1"], CliOptionError),
+        ("parsable, 0", UInt8, ["-a", "0"], (3, UInt8(0))),
+        ("parsable, 255", UInt8, ["-a", "255"], (3, UInt8(255))),
+        ("parsable, 256", UInt8, ["-a", "256"], CliOptionError),
+
+        # N/A
+        ("unacceptable", AbstractFloat, ["-a", "42"], CliOptionError),
+    ]
+        _, T, args, expected = v
+        option = Option(T, "-a")
+        result = CliOptions.ParseResult()
+        ctx = CliOptions.ParseContext()
+        if expected isa Type
+            @test_throws expected CliOptions.consume!(result, option, args, 1, ctx)
+        else
+            next_index = CliOptions.consume!(result, option, args, 1, ctx)
+            @test next_index == expected[1]
+            @test result.a == expected[2]
         end
     end
 
-    @testset "consume!(::Option); validator, Regex" begin
-        option = Option("-a", validator = Regex("qu+x"))
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-a", "qux"], 1)
-            @test next_index == 3
-            @test result.a == "qux"
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-a", "quux"], 1)
-            @test next_index == 3
-            @test result.a == "quux"
-        end
-        let result = CliOptions.ParseResult()
+    @testset "consume(); validator, $(v[1])" for v in [
+        ("[foo, bar], foo", ["-a", "foo"],
+            String, ["foo", "bar"], (3, "foo")),
+        ("[foo, bar], bar", ["-a", "bar"],
+            String, ["foo", "bar"], (3, "bar")),
+        ("[foo, bar], qux", ["-a", "qux"],
+            String, ["foo", "bar"], (CliOptionError, "must be one of")),
+        ("(foo, bar), foo", ["-a", "foo"],
+            String, ("foo", "bar"), (3, "foo")),
+        ("(foo, bar), bar", ["-a", "bar"],
+            String, ("foo", "bar"), (3, "bar")),
+        ("(foo, bar), qux", ["-a", "qux"],
+            String, ("foo", "bar"), (CliOptionError, "must be one of")),
+        ("/qu+x/, quux/", ["-a", "quux"],
+            String, Regex("qu+x"), (3, "quux")),
+        ("/qu+x/, qux", ["-a", "qux"],
+            String, Regex("qu+x"), (3, "qux")),
+        ("/qu+x/, qx", ["-a", "qx"],
+            String, Regex("qu+x"), (CliOptionError, "must match for")),
+        ("String -> Bool, foo", ["-a", "foo"],
+            String, s -> startswith(s, "foo"), (3, "foo")),
+        ("String -> Bool, 6", ["-a", "6"],
+            Int, n -> iseven(n), (3, 6)),
+        ("String -> Bool, 7", ["-a", "7"],
+            Int, n -> iseven(n), (CliOptionError, "validation failed")),
+        ("String -> String, foo", ["-a", "foo"],
+            String, s -> startswith(s, "foo") ? "" : "It's not foo", (3, "foo")),
+        ("String -> String, 6", ["-a", "6"],
+            Int, n -> iseven(n) ? "" : "must be even", (3, 6)),
+        ("String -> String, 7", ["-a", "7"],
+            Int, n -> iseven(n) ? "" : "must be even", (CliOptionError, "must be even")),
+    ]
+        _, args, T, validator, expected = v
+        option = Option(T, "-a"; validator = validator)
+        result = CliOptions.ParseResult()
+        ctx = CliOptions.ParseContext()
+        if expected[1] isa Type
             try
-                CliOptions.consume!(result, [option], option, ["-a", "foo"], 1)
+                CliOptions.consume!(result, option, args, 1, ctx)
+                @test false  # Exception must be thrown
             catch ex
-                @test ex isa CliOptionError
-                @test occursin("foo", ex.msg)
-                @test occursin("must match for", ex.msg)
-                @test occursin("qu+x", ex.msg)
+                @test ex isa expected[1]
+                @test occursin(args[1], ex.msg)
+                @test occursin(expected[2], ex.msg)
             end
+        else
+            next_index = CliOptions.consume!(result, option, args, 1, ctx)
+            @test next_index == expected[1]
+            @test result.a == expected[2]
         end
     end
 
-    @testset "consume!(::Option); validator, String -> Bool" begin
-        option = Option("-a", validator = s -> s == "foo")
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-a", "foo"], 1)
-            @test next_index == 3
-            @test result.a == "foo"
-        end
-
-        # String
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["-a", "bar"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("bar", ex.msg)
-                @test occursin("validation failed", ex.msg)
-            end
-        end
-
-        # non-String
-        option = Option(Int8, "-a", validator = n -> iseven(n))
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["-a", "7"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("Int8", ex.msg)
-                @test occursin("7", ex.msg)
-                @test occursin("validation failed", ex.msg)
-            end
-        end
-    end
-
-    @testset "consume!(::Option); validator, String -> String" begin
-        option = Option("-a", validator = s -> s == "foo" ? "" : "It's not foo")
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-a", "foo"], 1)
-            @test next_index == 3
-            @test result.a == "foo"
-        end
-
-        # String
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["-a", "bar"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("bar", ex.msg)
-                @test occursin("It's not foo", ex.msg)
-            end
-        end
-
-        # non-String
-        option = Option(Int8, "-a", validator = n -> iseven(n) ? "" : "must be even")
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["-a", "7"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("Int8", ex.msg)
-                @test occursin("7", ex.msg)
-                @test occursin("must be even", ex.msg)
-            end
-        end
-    end
-
-    @testset "check_usage_count(::Option)" begin
-        # Once evaluated
-        let result = CliOptions.ParseResult()
-            option = Option("-n", default = nothing)
-            result._counter[option] = 1
-            CliOptions.check_usage_count(result, option)
-            @test true  # No exception was thrown
-        end
-
-        # Not evaluated, no default value
-        let result = CliOptions.ParseResult()
-            option = Option("-n", default = nothing)
-            @test_throws CliOptionError CliOptions.check_usage_count(result, option)
-        end
-
-        # Not evaluated, default value was set
-        let result = CliOptions.ParseResult()
-            option = Option("-n"; default = "foo")
-            CliOptions.check_usage_count(result, option)
+    @testset "check_usage_count(); $(v[1])" for v in [
+        ("required, 0", nothing, 0, CliOptionError),
+        ("required, 1", nothing, 1, nothing),
+        ("omittable, 0", "foo", 0, nothing),
+    ]
+        _, default, count, expected = v
+        option = Option("-n", default = default)
+        ctx = CliOptions.ParseContext()
+        ctx.usage_count[option] = count
+        if expected isa Type
+            @test_throws expected CliOptions.check_usage_count(option, ctx)
+        else
             @test true  # No exception was thrown
         end
     end

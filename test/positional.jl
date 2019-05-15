@@ -58,11 +58,12 @@ using CliOptions: consume!
     ]
         _, multiple, args, expected_rv, expected = v
         result = CliOptions.ParseResult()
+        ctx = CliOptions.ParseContext()
         option = Positional("file", "files"; multiple = multiple)
         if expected isa Type
-            @test_throws expected consume!(result, [option], option, args, 1)
+            @test_throws expected consume!(result, option, args, 1, ctx)
         else
-            next_index = consume!(result, [option], option, args, 1)
+            next_index = consume!(result, option, args, 1, ctx)
             @test next_index == expected_rv
             @test sorted_keys(result._dict) == ["file", "files"]
             @test result.file == expected
@@ -77,214 +78,81 @@ using CliOptions: consume!
     ]
         T, args, expected = v
         result = CliOptions.ParseResult()
+        ctx = CliOptions.ParseContext()
         option = Positional(T, "value")
         if expected isa Type
-            @test_throws expected consume!(result, [option], option, args, 1)
+            @test_throws expected consume!(result, option, args, 1, ctx)
         else
-            consume!(result, [option], option, args, 1)
+            consume!(result, option, args, 1, ctx)
             @test result.value == expected
         end
     end
 
-    @testset "consume(::Positional); validator, Vector{String}" begin
-        option = Positional("name", "names", validator = ["foo", "bar"], multiple = true)
+    @testset "consume(); validator, $(v[1])" for v in [
+        ("[7, 13], 13", ["13"],
+            Int, [7, 13], (2, 13)),
+        ("[7, 13], 7", ["7"],
+            Int, [7, 13], (2, 7)),
+        ("[7, 13], 0", ["0"],
+            Int, [7, 13], (CliOptionError, "must be one of")),
+        ("(7, 13), 13", ["13"],
+            Int, (7, 13), (2, 13)),
+        ("(7, 13), 7", ["7"],
+            Int, (7, 13), (2, 7)),
+        ("(7, 13), 0", ["0"],
+            Int, (7, 13), (CliOptionError, "must be one of")),
+        ("/qu+x/, quux", ["quux"],
+            String, Regex("qu+x"), (2, "quux")),
+        ("/qu+x/, qux", ["qux"],
+            String, Regex("qu+x"), (2, "qux")),
+        ("/qu+x/, qx", ["qx"],
+            String, Regex("qu+x"), (CliOptionError, "must match for")),
+        ("String -> Bool, foo", ["foo"],
+            String, s -> startswith(s, "foo"), (2, "foo")),
+        ("String -> Bool, 6", ["6"],
+            Int, n -> iseven(n), (2, 6)),
+        ("String -> Bool, 7", ["7"],
+            Int, n -> iseven(n), (CliOptionError, "validation failed")),
+        ("String -> String, foo", ["foo"],
+            String, s -> startswith(s, "foo") ? "" : "It's not foo", (2, "foo")),
+        ("String -> String, 6", ["6"],
+            Int, n -> iseven(n) ? "" : "must be even", (2, 6)),
+        ("String -> String, 7", ["7"],
+            Int, n -> iseven(n) ? "" : "must be even", (CliOptionError, "must be even")),
+    ]
+        _, args, T, validator, expected = v
+        option = Positional(T, "name"; validator = validator)
         let result = CliOptions.ParseResult()
-            next_index = consume!(result, [option], option, ["foo", "bar"], 1)
-            @test next_index == 3
-            @test result.names == ["foo", "bar"]
-        end
-
-        option = Positional("name", validator = ["foo", "bar"])
-        let result = CliOptions.ParseResult()
-            next_index = consume!(result, [option], option, ["foo"], 1)
-            @test next_index == 2
-            @test result.name == "foo"
-        end
-        let result = CliOptions.ParseResult()
-            next_index = consume!(result, [option], option, ["bar"], 1)
-            @test next_index == 2
-            @test result.name == "bar"
-        end
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["baz"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("baz", ex.msg)
-                @test occursin("must be one of", ex.msg)
-                @test occursin("foo", ex.msg)
-                @test occursin("bar", ex.msg)
+            ctx = CliOptions.ParseContext()
+            if expected[1] isa Type
+                try
+                    CliOptions.consume!(result, option, args, 1, ctx)
+                    @assert false
+                catch ex
+                    @test ex isa expected[1]
+                    @test occursin(args[1], ex.msg)
+                    @test occursin(expected[2], ex.msg)
+                end
+            else
+                next_index = CliOptions.consume!(result, option, args, 1, ctx)
+                @test next_index == expected[1]
+                @test result.name == expected[2]
             end
         end
     end
 
-    @testset "consume(::Positional); validator, Tuple{Vararg{Int}}" begin
-        option = Positional(Int, "number", "numbers", validator = (7, 13), multiple = true)
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["7", "13"], 1)
-            @test next_index == 3
-            @test result.numbers isa Vector{Int}
-            @test result.numbers == [7, 13]
-        end
-        option = Positional(Int, "number", validator = (7, 13))
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["7"], 1)
-            @test next_index == 2
-            @test result.number isa Int
-            @test result.number == 7
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["13"], 1)
-            @test next_index == 2
-            @test result.number isa Int
-            @test result.number == 13
-        end
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["9"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("9", ex.msg)
-                @test occursin("must be one of", ex.msg)
-                @test occursin("7", ex.msg)
-                @test occursin("13", ex.msg)
-            end
-        end
-    end
-
-    @testset "consume(::Positional); validator, Regex" begin
-        option = Positional("name", "names", validator = Regex("qu+x"), multiple = true)
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["qux", "quux"], 1)
-            @test next_index == 3
-            @test result.names == ["qux", "quux"]
-        end
-        option = Positional("name", validator = Regex("qu+x"))
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["qux"], 1)
-            @test next_index == 2
-            @test result.name == "qux"
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["quux"], 1)
-            @test next_index == 2
-            @test result.name == "quux"
-        end
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["foo"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("foo", ex.msg)
-                @test occursin("must match for", ex.msg)
-                @test occursin("qu+x", ex.msg)
-            end
-        end
-    end
-
-    @testset "consume(::Positional); validator, String -> Bool" begin
-        f = s -> startswith(s, "foo")
-        g = n -> iseven(n)
-
-        option = Positional("name", "names", validator = f, multiple = true)
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["foo", "foobar"], 1)
-            @test next_index == 3
-            @test result.names == ["foo", "foobar"]
-        end
-        option = Positional("name", validator = f)
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["foo"], 1)
-            @test next_index == 2
-            @test result.name == "foo"
-        end
-
-        # String
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["bar"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("bar", ex.msg)
-                @test occursin("validation failed", ex.msg)
-            end
-        end
-
-        # non-String
-        option = Positional(Int8, "name", validator = g)
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["7"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("Int8", ex.msg)
-                @test occursin("7", ex.msg)
-                @test occursin("validation failed", ex.msg)
-            end
-        end
-    end
-
-    @testset "consume(::Positional); validator, String -> String" begin
-        f = s -> startswith(s, "foo") ? "" : "It's not foo"
-        g = n -> iseven(n) ? "" : "must be even"
-
-        option = Positional("name", "names", validator = f, multiple = true)
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["foo", "foobar"], 1)
-            @test next_index == 3
-            @test result.names == ["foo", "foobar"]
-        end
-        option = Positional("name", validator = f)
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["foo"], 1)
-            @test next_index == 2
-            @test result.name == "foo"
-        end
-
-        # String
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["bar"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("bar", ex.msg)
-                @test occursin("It's not foo", ex.msg)
-            end
-        end
-
-        # non-String
-        option = Positional(Int8, "name", validator = g)
-        let result = CliOptions.ParseResult()
-            try
-                CliOptions.consume!(result, [option], option, ["7"], 1)
-            catch ex
-                @test ex isa CliOptionError
-                @test occursin("Int8", ex.msg)
-                @test occursin("7", ex.msg)
-                @test occursin("must be even", ex.msg)
-            end
-        end
-    end
-
-    @testset "check_usage_count(::Positional)" begin
-        # Once evaluated
-        let result = CliOptions.ParseResult()
-            option = Positional("file", default = nothing)
-            result._counter[option] = 1
-            CliOptions.check_usage_count(result, option)
-            @test true  # No exception was thrown
-        end
-
-        # Not evaluated, no default value
-        let result = CliOptions.ParseResult()
-            option = Positional("file", default = nothing)
-            @test_throws CliOptionError CliOptions.check_usage_count(result, option)
-        end
-
-        # Not evaluated, default value was set
-        let result = CliOptions.ParseResult()
-            option = Positional("file"; default = "foo")
-            CliOptions.check_usage_count(result, option)
+    @testset "check_usage_count(); $(v[1])" for v in [
+        ("required, 0", nothing, 0, CliOptionError),
+        ("required, 1", nothing, 1, nothing),
+        ("omittable, 0", "foo", 0, nothing),
+    ]
+        _, default, count, expected = v
+        option = Positional("file", default = default)
+        ctx = CliOptions.ParseContext()
+        ctx.usage_count[option] = count
+        if expected isa Type
+            @test_throws expected CliOptions.check_usage_count(option, ctx)
+        else
             @test true  # No exception was thrown
         end
     end

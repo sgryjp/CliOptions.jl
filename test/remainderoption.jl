@@ -49,9 +49,9 @@ using CliOptions
 
     @testset "consume(); args = Any[]" begin
         let result = CliOptions.ParseResult()
+            ctx = CliOptions.ParseContext()
             option = RemainderOption()
-            @test_throws AssertionError CliOptions.consume!(result, [option],
-                                                            option, String[], 1)
+            @test_throws AssertionError CliOptions.consume!(result, option, [], 1, ctx)
         end
     end
 
@@ -62,8 +62,9 @@ using CliOptions
     ]
         names, args, expected_next_index, property, expected_values = v
         result = CliOptions.ParseResult()
+        ctx = CliOptions.ParseContext()
         option = RemainderOption(names...)
-        next_index = CliOptions.consume!(result, [option], option, args, 1)
+        next_index = CliOptions.consume!(result, option, args, 1, ctx)
         @test next_index == expected_next_index
         @test getproperty(result, property) == expected_values
     end

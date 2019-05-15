@@ -21,12 +21,11 @@ using CliOptions
         end
 
         @testset "propertynames" begin
-            @test sort(propertynames(result)) == [:_counter, :_dict, :bar, :foo]
+            @test sort(propertynames(result)) == [:_dict, :bar, :foo]
         end
 
         @testset "getproperty" begin
             @test getproperty(result, :_dict) !== nothing
-            @test getproperty(result, :_counter) !== nothing
             @test getproperty(result, :foo) == "FOO"
             @test getproperty(result, :bar) == "BAR"
         end

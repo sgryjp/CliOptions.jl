@@ -48,75 +48,19 @@ using CliOptions
         end
     end
 
-    @testset "consume(::FlagOption)" begin
-        option = FlagOption("-i", "--ignore-case")
-
-        let result = CliOptions.ParseResult()
-            @test_throws AssertionError CliOptions.consume!(result, [option], option, String[], 1)
-        end
-        let result = CliOptions.ParseResult()
-            # Splitting optchars are done by parse_args()
-            @test_throws AssertionError CliOptions.consume!(result, [option], option, ["-ab"], 1)
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["foo"], 1)
-            @test next_index == 0
-            @test isempty(result._dict)
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-i"], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["i", "ignore_case"]
-            @test result.i == true
-            @test result.ignore_case == true
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["--ignore-case"], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["i", "ignore_case"]
-            @test result.i == true
-            @test result.ignore_case == true
-        end
-    end
-
-    @testset "consume(::FlagOption); negators" begin
-        option = FlagOption("-i", negators = ["-c", "--case-sensitive"])
-
-        let result = CliOptions.ParseResult()
-            @test_throws AssertionError CliOptions.consume!(result, [option], option, String[], 1)
-        end
-        let result = CliOptions.ParseResult()
-            # Splitting optchars are done by parse_args()
-            @test_throws AssertionError CliOptions.consume!(result, [option], option, ["-ab"], 1)
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["foo"], 1)
-            @test next_index == 0
-            @test isempty(result._dict)
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-i"], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["c", "case_sensitive", "i"]
-            @test result.i == true
-            @test result.c == false
-            @test result.case_sensitive == false
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["-c"], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["c", "case_sensitive", "i"]
-            @test result.i == false
-            @test result.c == true
-            @test result.case_sensitive == true
-        end
-        let result = CliOptions.ParseResult()
-            next_index = CliOptions.consume!(result, [option], option, ["--case-sensitive"], 1)
-            @test next_index == 2
-            @test sorted_keys(result._dict) == ["c", "case_sensitive", "i"]
-            @test result.i == false
-            @test result.c == true
-            @test result.case_sensitive == true
-        end
+    @testset "consume!(); $(v[1])" for v in [
+        (["-i"], (2, true)),
+        (["--ignore-case"], (2, true)),
+        (["-I"], (2, false)),
+        (["--case-sensitive"], (2, false)),
+    ]
+        args, expected = v
+        result = CliOptions.ParseResult()
+        ctx = CliOptions.ParseContext()
+        option = FlagOption("-i", "--ignore-case"; negators = ["-I", "--case-sensitive"])
+        next_index = CliOptions.consume!(result, option, args, 1, ctx)
+        @test next_index == expected[1]
+        @test result.ignore_case == expected[2]
+        @test result.case_sensitive == !expected[2]
     end
 end

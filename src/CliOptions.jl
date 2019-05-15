@@ -73,9 +73,8 @@ This type is not exported.
 """
 struct ParseResult
     _dict
-    _counter
 
-    ParseResult() = new(Dict{String,Any}(),Dict{AbstractOption,Int}())
+    ParseResult() = new(Dict{String,Any}())
 end
 
 function Base.show(io::IO, x::ParseResult)
@@ -89,14 +88,12 @@ function Base.getindex(result::ParseResult, key)
 end
 
 function Base.propertynames(result::ParseResult, private = false)
-    vcat([:_dict, :_counter], [Symbol(k) for (k, v) ∈ getfield(result, :_dict)])
+    vcat([:_dict], [Symbol(k) for (k, v) ∈ getfield(result, :_dict)])
 end
 
 function Base.getproperty(result::ParseResult, name::Symbol)
     if name == :_dict
         return getfield(result, :_dict)
-    elseif name == :_counter
-        return getfield(result, :_counter)
     else
         return getfield(result, :_dict)[String(name)]
     end
@@ -187,10 +184,10 @@ function set_default!(result::ParseResult, o::Option)
     end
 end
 
-function consume!(result::ParseResult, all_options, o::Option, args, i)
+function consume!(result::ParseResult, o::Option, args, i, ctx)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
-    @assert all(o isa AbstractOption for o in all_options)
+    @assert all(o isa AbstractOption for o in ctx.all_options)
 
     if args[i] ∉ o.names
         return 0
@@ -200,8 +197,7 @@ function consume!(result::ParseResult, all_options, o::Option, args, i)
     end
 
     # Update counter
-    count::Int = get!(result._counter, o, 0)
-    result._counter[o] += 1
+    ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
 
     value = _parse(o.T, args[i + 1], o.validator, args[i])
     for name in o.names
@@ -210,9 +206,9 @@ function consume!(result::ParseResult, all_options, o::Option, args, i)
     i + 2
 end
 
-function check_usage_count(result, o::Option)
+function check_usage_count(o::Option, ctx)
     # Throw if it's required but was omitted
-    if o.default === nothing && get(result._counter, o, 0) ≤ 0
+    if o.default === nothing && get(ctx.usage_count, o, 0) ≤ 0
         msg = "Option \"$(o.names[1])\" must be specified"
         throw(CliOptionError(msg))
     end
@@ -268,10 +264,10 @@ function set_default!(result::ParseResult, o::FlagOption)
     foreach(k -> result._dict[encode(k)] = true, o.negators)
 end
 
-function consume!(result::ParseResult, all_options, o::FlagOption, args, i)
+function consume!(result::ParseResult, o::FlagOption, args, i, ctx)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
-    @assert all(o isa AbstractOption for o in all_options)
+    @assert all(o isa AbstractOption for o in ctx.all_options)
 
     if startswith(args[i], "--")
         if args[i] ∈ o.names
@@ -295,8 +291,8 @@ function consume!(result::ParseResult, all_options, o::FlagOption, args, i)
     end
 
     # Update counter
-    count::Int = get!(result._counter, o, 0)
-    result._counter[o] = count + 1
+    count::Int = get!(ctx.usage_count, o, 0)
+    ctx.usage_count[o] = count + 1
 
     # Construct parsed values
     foreach(k -> result._dict[encode(k)] = value, o.names)
@@ -304,7 +300,7 @@ function consume!(result::ParseResult, all_options, o::FlagOption, args, i)
     i + 1
 end
 
-check_usage_count(result, o::FlagOption) = nothing
+check_usage_count(o::FlagOption, ctx) = nothing
 
 function to_usage_tokens(o::FlagOption)
     latter_part = 1 ≤ length(o.negators) ? " | " * o.negators[1] : ""
@@ -372,10 +368,10 @@ function set_default!(result::ParseResult, o::CounterOption)
     foreach(k -> result._dict[encode(k)] = o.T(o.default), o.names)
 end
 
-function consume!(result::ParseResult, all_options, o::CounterOption, args, i)
+function consume!(result::ParseResult, o::CounterOption, args, i, ctx)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
-    @assert all(o isa AbstractOption for o in all_options)
+    @assert all(o isa AbstractOption for o in ctx.all_options)
 
     diff = 0
     if startswith(args[i], "--")
@@ -398,14 +394,14 @@ function consume!(result::ParseResult, all_options, o::CounterOption, args, i)
     value = o.T(get(result._dict, encode(o.names[1]), 0) + diff)
 
     # Update counter
-    result._counter[o] = get(result._counter, o, 0) + 1
+    ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
 
     # Construct parsed values
     foreach(k -> result._dict[encode(k)] = value, o.names)
     i + 1
 end
 
-check_usage_count(result, o::CounterOption) = nothing
+check_usage_count(o::CounterOption, ctx) = nothing
 
 function to_usage_tokens(o::CounterOption)
     latter_part = 1 ≤ length(o.decrementers) ? " | " * o.decrementers[1] : ""
@@ -452,11 +448,11 @@ function set_default!(result::ParseResult, o::HelpOption)
     set_default!(result, o.flag)
 end
 
-function consume!(result::ParseResult, all_options, o::HelpOption, args, i)
-    consume!(result, all_options, o.flag, args, i)
+function consume!(result::ParseResult, o::HelpOption, args, i, ctx)
+    consume!(result, o.flag, args, i, ctx)
 end
 
-check_usage_count(result, o::HelpOption) = nothing
+check_usage_count(o::HelpOption, ctx) = nothing
 
 function to_usage_tokens(o::HelpOption)
     ["[" * o.names[1] * "]"]
@@ -527,18 +523,18 @@ function set_default!(result::ParseResult, o::Positional)
     end
 end
 
-function consume!(result::ParseResult, all_options, o::Positional, args, i)
+function consume!(result::ParseResult, o::Positional, args, i, ctx)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
-    @assert all(o isa AbstractOption for o in all_options)
+    @assert all(o isa AbstractOption for o in ctx.all_options)
 
     # Skip if this node is already processed
-    count::Int = get(result._counter, o, 0)
+    count::Int = get(ctx.usage_count, o, 0)
     max_nvalues = o.multiple ? Inf : 1
     if max_nvalues ≤ count
         return 0
     end
-    result._counter[o] = count + 1
+    ctx.usage_count[o] = count + 1
 
     # Scan values to consume
     values = Vector{o.T}()
@@ -547,7 +543,7 @@ function consume!(result::ParseResult, all_options, o::Positional, args, i)
         if token_type == :valid
             break  # Do not consume an argument which looks like an option
         elseif token_type == :negative
-            if any(name == arg for opt in all_options for name in opt.names)
+            if any(name == arg for opt in ctx.all_options for name in opt.names)
                 break  # Do not consume an option which looks like a negative number
             end
         end
@@ -565,9 +561,9 @@ function consume!(result::ParseResult, all_options, o::Positional, args, i)
     return i + length(values)
 end
 
-function check_usage_count(result, o::Positional)
+function check_usage_count(o::Positional, ctx)
     # Throw if it's required but was omitted
-    if o.default === nothing && get(result._counter, o, 0) ≤ 0
+    if o.default === nothing && get(ctx.usage_count, o, 0) ≤ 0
         msg = "\"$(o.names[1])\" must be specified"
         throw(CliOptionError(msg))
     end
@@ -654,10 +650,10 @@ function set_default!(result::ParseResult, o::RemainderOption)
     end
 end
 
-function consume!(result::ParseResult, all_options, o::RemainderOption, args, i)
+function consume!(result::ParseResult, o::RemainderOption, args, i, ctx)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
-    @assert all(o isa AbstractOption for o in all_options)
+    @assert all(o isa AbstractOption for o in ctx.all_options)
 
     # Skip if name does not match
     if args[i] ∉ o.names
@@ -675,12 +671,12 @@ function consume!(result::ParseResult, all_options, o::RemainderOption, args, i)
     end
 
     # Update counter
-    result._counter[o] = get(result._counter, o, 0) + 1
+    ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
 
     return length(args) + 1
 end
 
-check_usage_count(result, o::RemainderOption) = nothing
+check_usage_count(o::RemainderOption, ctx) = nothing
 
 function to_usage_tokens(o::RemainderOption)
     ["[$(uppercase(o.names[1])) ARGUMENT [ARGUMENT...]]"]
@@ -716,9 +712,9 @@ function set_default!(result::ParseResult, o::OptionGroup)
     foreach(o -> set_default!(result, o), o.options)
 end
 
-function consume!(result::ParseResult, all_options, o::OptionGroup, args, i)
+function consume!(result::ParseResult, o::OptionGroup, args, i, ctx)
     for option in o.options
-        next_index = consume!(result, all_options, option, args, i)
+        next_index = consume!(result, option, args, i, ctx)
         if 0 < next_index
             return next_index
         end
@@ -726,9 +722,9 @@ function consume!(result::ParseResult, all_options, o::OptionGroup, args, i)
     return 0
 end
 
-function check_usage_count(result, o::OptionGroup)
+function check_usage_count(o::OptionGroup, ctx)
     for option in o.options
-        check_usage_count(result, option)
+        check_usage_count(option, ctx)
     end
 end
 
@@ -767,9 +763,9 @@ function set_default!(result::ParseResult, o::MutexGroup)  # Same as from Option
     foreach(o -> set_default!(result, o), o.options)
 end
 
-function consume!(result::ParseResult, all_options, o::MutexGroup, args, i)  # Same as from OptionGroup
+function consume!(result::ParseResult, o::MutexGroup, args, i, ctx)  # Same as from OptionGroup
     for option in o.options
-        next_index = consume!(result, all_options, option, args, i)
+        next_index = consume!(result, option, args, i, ctx)
         if 0 < next_index
             return next_index
         end
@@ -777,11 +773,11 @@ function consume!(result::ParseResult, all_options, o::MutexGroup, args, i)  # S
     return 0
 end
 
-function check_usage_count(result, o::MutexGroup)
+function check_usage_count(o::MutexGroup, ctx)
     exceptions = Exception[]
     for option in o.options
         try
-            check_usage_count(result, option)
+            check_usage_count(option, ctx)
         catch ex
             push!(exceptions, ex)
         end
@@ -905,6 +901,13 @@ function print_usage(spec::CliOptionSpec; verbose = true)
 end
 
 
+struct ParseContext
+    usage_count
+    all_options
+
+    ParseContext() = new(Dict{AbstractOption,Int}(), Vector{AbstractOption}())
+end
+
 """
     parse_args(spec::CliOptionSpec, args = ARGS)
 
@@ -947,13 +950,13 @@ patterns: ["*.log"]
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParseResult()
+    ctx = ParseContext()
 
     # Store all options in a vector and pick special options
     help_option = nothing
     remainders_option = nothing
-    all_options = AbstractOption[]
     foreach_options(spec.root) do o
-        push!(all_options, o)
+        push!(ctx.all_options, o)
         if o isa HelpOption
             help_option = o
         elseif o isa RemainderOption
@@ -987,7 +990,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     # Parse arguments
     i = 1
     while i ≤ length(args)
-        next_index = consume!(result, all_options, spec.root, args, i)
+        next_index = consume!(result, spec.root, args, i, ctx)
         if next_index ≤ 0
             throw(CliOptionError("Unrecognized argument: \"$(args[i])\""))
         end
@@ -996,8 +999,8 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     end
 
     # Take care of omitted options
-    for option ∈ (o for o in spec.root.options if get(result._counter, o, 0) ≤ 0)
-        check_usage_count(result, option)
+    for option ∈ (o for o in spec.root.options if get(ctx.usage_count, o, 0) ≤ 0)
+        check_usage_count(option, ctx)
     end
 
     result
