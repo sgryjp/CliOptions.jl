@@ -178,9 +178,9 @@ function Option(primary_name::String, secondary_name::String = "";
            default = default, validator = validator, help = help)
 end
 
-function set_default!(result::ParseResult, o::Option)
+function set_default!(d::Dict{String,Any}, o::Option)
     for name in o.names
-        result._dict[encode(name)] = o.default
+        d[encode(name)] = o.default
     end
 end
 
@@ -259,9 +259,13 @@ struct FlagOption <: AbstractOption
     end
 end
 
-function set_default!(result::ParseResult, o::FlagOption)
-    foreach(k -> result._dict[encode(k)] = false, o.names)
-    foreach(k -> result._dict[encode(k)] = true, o.negators)
+function set_default!(d::Dict{String,Any}, o::FlagOption)
+    for name in o.names
+        d[encode(name)] = false
+    end
+    for name in o.negators
+        d[encode(name)] = true
+    end
 end
 
 function consume!(result::ParseResult, o::FlagOption, args, i, ctx)
@@ -364,8 +368,10 @@ function CounterOption(primary_name::String, secondary_name::String = "";
                   decrementer_help = decrementer_help)
 end
 
-function set_default!(result::ParseResult, o::CounterOption)
-    foreach(k -> result._dict[encode(k)] = o.T(o.default), o.names)
+function set_default!(d::Dict{String,Any}, o::CounterOption)
+    for name in o.names
+        d[encode(name)] = o.T(o.default)
+    end
 end
 
 function consume!(result::ParseResult, o::CounterOption, args, i, ctx)
@@ -444,8 +450,8 @@ struct HelpOption <: AbstractOption
     end
 end
 
-function set_default!(result::ParseResult, o::HelpOption)
-    set_default!(result, o.flag)
+function set_default!(d::Dict{String,Any}, o::HelpOption)
+    set_default!(d, o.flag)
 end
 
 function consume!(result::ParseResult, o::HelpOption, args, i, ctx)
@@ -517,9 +523,9 @@ function Positional(singular_name::String,
                multiple = multiple, validator = validator, default = default, help = help)
 end
 
-function set_default!(result::ParseResult, o::Positional)
+function set_default!(d::Dict{String,Any}, o::Positional)
     for name in o.names
-        result._dict[encode(name)] = o.default
+        d[encode(name)] = o.default
     end
 end
 
@@ -643,10 +649,10 @@ struct RemainderOption <: AbstractOption
     end
 end
 
-function set_default!(result::ParseResult, o::RemainderOption)
+function set_default!(d::Dict{String,Any}, o::RemainderOption)
     for name in o.names
         key = encode(name == "--" ? "--_remainders" : name)
-        result._dict[key] = AbstractString[]
+        d[key] = AbstractString[]
     end
 end
 
@@ -708,8 +714,10 @@ struct OptionGroup <: AbstractOptionGroup
     OptionGroup(options::AbstractOption...; name::String = "") = new((name,), options)
 end
 
-function set_default!(result::ParseResult, o::OptionGroup)
-    foreach(o -> set_default!(result, o), o.options)
+function set_default!(d::Dict{String,Any}, o::OptionGroup)
+    for option in o.options
+        set_default!(d, option)
+    end
 end
 
 function consume!(result::ParseResult, o::OptionGroup, args, i, ctx)
@@ -759,8 +767,10 @@ struct MutexGroup <: AbstractOptionGroup
     MutexGroup(options::AbstractOption...; name::String = "") = new(name, options)
 end
 
-function set_default!(result::ParseResult, o::MutexGroup)  # Same as from OptionGroup
-    foreach(o -> set_default!(result, o), o.options)
+function set_default!(d::Dict{String,Any}, o::MutexGroup)  # Same as from OptionGroup
+    for option in o.options
+        set_default!(d, option)
+    end
 end
 
 function consume!(result::ParseResult, o::MutexGroup, args, i, ctx)  # Same as from OptionGroup
@@ -985,7 +995,9 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     end
 
     # Setup default values
-    foreach(o -> set_default!(result, o), spec.root)
+    for option in spec.root
+        set_default!(result._dict, option)
+    end
 
     # Parse arguments
     i = 1
