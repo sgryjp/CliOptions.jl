@@ -184,7 +184,7 @@ function set_default!(d::Dict{String,Any}, o::Option)
     end
 end
 
-function consume!(result::ParseResult, o::Option, args, i, ctx)
+function consume!(d::Dict{String,Any}, o::Option, args, i, ctx)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
     @assert all(o isa AbstractOption for o in ctx.all_options)
@@ -201,7 +201,7 @@ function consume!(result::ParseResult, o::Option, args, i, ctx)
 
     value = _parse(o.T, args[i + 1], o.validator, args[i])
     for name in o.names
-        result._dict[encode(name)] = value
+        d[encode(name)] = value
     end
     i + 2
 end
@@ -268,7 +268,7 @@ function set_default!(d::Dict{String,Any}, o::FlagOption)
     end
 end
 
-function consume!(result::ParseResult, o::FlagOption, args, i, ctx)
+function consume!(d::Dict{String,Any}, o::FlagOption, args, i, ctx)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
     @assert all(o isa AbstractOption for o in ctx.all_options)
@@ -299,8 +299,12 @@ function consume!(result::ParseResult, o::FlagOption, args, i, ctx)
     ctx.usage_count[o] = count + 1
 
     # Construct parsed values
-    foreach(k -> result._dict[encode(k)] = value, o.names)
-    foreach(k -> result._dict[encode(k)] = !value, o.negators)
+    for name in o.names
+        d[encode(name)] = value
+    end
+    for name in o.negators
+        d[encode(name)] = !value
+    end
     i + 1
 end
 
@@ -374,7 +378,7 @@ function set_default!(d::Dict{String,Any}, o::CounterOption)
     end
 end
 
-function consume!(result::ParseResult, o::CounterOption, args, i, ctx)
+function consume!(d::Dict{String,Any}, o::CounterOption, args, i, ctx)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
     @assert all(o isa AbstractOption for o in ctx.all_options)
@@ -397,13 +401,15 @@ function consume!(result::ParseResult, o::CounterOption, args, i, ctx)
     if diff == 0
         return 0
     end
-    value = o.T(get(result._dict, encode(o.names[1]), 0) + diff)
+    value = o.T(get(d, encode(o.names[1]), 0) + diff)
 
     # Update counter
     ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
 
     # Construct parsed values
-    foreach(k -> result._dict[encode(k)] = value, o.names)
+    for name in o.names
+        d[encode(name)] = value
+    end
     i + 1
 end
 
@@ -454,8 +460,8 @@ function set_default!(d::Dict{String,Any}, o::HelpOption)
     set_default!(d, o.flag)
 end
 
-function consume!(result::ParseResult, o::HelpOption, args, i, ctx)
-    consume!(result, o.flag, args, i, ctx)
+function consume!(d::Dict{String,Any}, o::HelpOption, args, i, ctx)
+    consume!(d, o.flag, args, i, ctx)
 end
 
 check_usage_count(o::HelpOption, ctx) = nothing
@@ -529,7 +535,7 @@ function set_default!(d::Dict{String,Any}, o::Positional)
     end
 end
 
-function consume!(result::ParseResult, o::Positional, args, i, ctx)
+function consume!(d::Dict{String,Any}, o::Positional, args, i, ctx)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
     @assert all(o isa AbstractOption for o in ctx.all_options)
@@ -561,7 +567,7 @@ function consume!(result::ParseResult, o::Positional, args, i, ctx)
 
     # Store parse result
     for name in o.names
-        result._dict[encode(name)] = o.multiple ? values : values[1]
+        d[encode(name)] = o.multiple ? values : values[1]
     end
 
     return i + length(values)
@@ -656,7 +662,7 @@ function set_default!(d::Dict{String,Any}, o::RemainderOption)
     end
 end
 
-function consume!(result::ParseResult, o::RemainderOption, args, i, ctx)
+function consume!(d::Dict{String,Any}, o::RemainderOption, args, i, ctx)
     @assert 1 ≤ i ≤ length(args)
     @assert "" ∉ o.names
     @assert all(o isa AbstractOption for o in ctx.all_options)
@@ -673,7 +679,7 @@ function consume!(result::ParseResult, o::RemainderOption, args, i, ctx)
     end
     for name in o.names
         key = encode(name == "--" ? "--_remainders" : name)
-        result._dict[key] = values
+        d[key] = values
     end
 
     # Update counter
@@ -720,9 +726,9 @@ function set_default!(d::Dict{String,Any}, o::OptionGroup)
     end
 end
 
-function consume!(result::ParseResult, o::OptionGroup, args, i, ctx)
+function consume!(d::Dict{String,Any}, o::OptionGroup, args, i, ctx)
     for option in o.options
-        next_index = consume!(result, option, args, i, ctx)
+        next_index = consume!(d, option, args, i, ctx)
         if 0 < next_index
             return next_index
         end
@@ -773,9 +779,9 @@ function set_default!(d::Dict{String,Any}, o::MutexGroup)  # Same as from Option
     end
 end
 
-function consume!(result::ParseResult, o::MutexGroup, args, i, ctx)  # Same as from OptionGroup
+function consume!(d::Dict{String,Any}, o::MutexGroup, args, i, ctx)  # Same as from OptionGroup
     for option in o.options
-        next_index = consume!(result, option, args, i, ctx)
+        next_index = consume!(d, option, args, i, ctx)
         if 0 < next_index
             return next_index
         end
@@ -1002,7 +1008,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     # Parse arguments
     i = 1
     while i ≤ length(args)
-        next_index = consume!(result, spec.root, args, i, ctx)
+        next_index = consume!(result._dict, spec.root, args, i, ctx)
         if next_index ≤ 0
             throw(CliOptionError("Unrecognized argument: \"$(args[i])\""))
         end

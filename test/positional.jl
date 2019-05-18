@@ -57,16 +57,16 @@ using CliOptions: consume!
         ("multiple", true, ["a", "b"], 3, ["a", "b"]),
     ]
         _, multiple, args, expected_rv, expected = v
-        result = CliOptions.ParseResult()
+        d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = Positional("file", "files"; multiple = multiple)
         if expected isa Type
-            @test_throws expected consume!(result, option, args, 1, ctx)
+            @test_throws expected consume!(d, option, args, 1, ctx)
         else
-            next_index = consume!(result, option, args, 1, ctx)
+            next_index = consume!(d, option, args, 1, ctx)
             @test next_index == expected_rv
-            @test sorted_keys(result._dict) == ["file", "files"]
-            @test result.file == expected
+            @test sorted_keys(d) == ["file", "files"]
+            @test d["file"] == expected
         end
     end
 
@@ -77,18 +77,18 @@ using CliOptions: consume!
         (Date, ["__not_a_date__"], CliOptionError),
     ]
         T, args, expected = v
-        result = CliOptions.ParseResult()
+        d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = Positional(T, "value")
         if expected isa Type
-            @test_throws expected consume!(result, option, args, 1, ctx)
+            @test_throws expected consume!(d, option, args, 1, ctx)
         else
-            consume!(result, option, args, 1, ctx)
-            @test result.value == expected
+            consume!(d, option, args, 1, ctx)
+            @test d["value"] == expected
         end
     end
 
-    @testset "consume(); validator, $(v[1])" for v in [
+    @testset "consume!(); validator, $(v[1])" for v in [
         ("[7, 13], 13", ["13"],
             Int, [7, 13], (2, 13)),
         ("[7, 13], 7", ["7"],
@@ -122,21 +122,21 @@ using CliOptions: consume!
     ]
         _, args, T, validator, expected = v
         option = Positional(T, "name"; validator = validator)
-        let result = CliOptions.ParseResult()
+        let d = Dict{String,Any}()
             ctx = CliOptions.ParseContext()
             if expected[1] isa Type
                 try
-                    CliOptions.consume!(result, option, args, 1, ctx)
-                    @assert false
+                    CliOptions.consume!(d, option, args, 1, ctx)
+                    @test false  # Exception must be thrown
                 catch ex
                     @test ex isa expected[1]
                     @test occursin(args[1], ex.msg)
                     @test occursin(expected[2], ex.msg)
                 end
             else
-                next_index = CliOptions.consume!(result, option, args, 1, ctx)
+                next_index = CliOptions.consume!(d, option, args, 1, ctx)
                 @test next_index == expected[1]
-                @test result.name == expected[2]
+                @test d["name"] == expected[2]
             end
         end
     end

@@ -47,25 +47,25 @@ using CliOptions
         end
     end
 
-    @testset "consume(); args = Any[]" begin
-        let result = CliOptions.ParseResult()
+    @testset "consume!(); args = Any[]" begin
+        let d = Dict{String,Any}()
             ctx = CliOptions.ParseContext()
             option = RemainderOption()
-            @test_throws AssertionError CliOptions.consume!(result, option, [], 1, ctx)
+            @test_throws AssertionError CliOptions.consume!(d, option, [], 1, ctx)
         end
     end
 
-    @testset "consume(); names = $(v[1])" for v in [
-        ([], ["--", "a", "b"], 4, :_remainders, ["a", "b"])
-        (["-x"], ["-x", "a", "b"], 4, :x, ["a", "b"])
-        (["--exec"], ["--exec", "a", "b"], 4, :exec, ["a", "b"])
+    @testset "consume!(); names = $(v[1])" for v in [
+        ([], ["--", "a", "b"], 4, "_remainders", ["a", "b"])
+        (["-x"], ["-x", "a", "b"], 4, "x", ["a", "b"])
+        (["--exec"], ["--exec", "a", "b"], 4, "exec", ["a", "b"])
     ]
-        names, args, expected_next_index, property, expected_values = v
-        result = CliOptions.ParseResult()
+        names, args, expected_next_index, key, expected_values = v
+        dict = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = RemainderOption(names...)
-        next_index = CliOptions.consume!(result, option, args, 1, ctx)
+        next_index = CliOptions.consume!(dict, option, args, 1, ctx)
         @test next_index == expected_next_index
-        @test getproperty(result, property) == expected_values
+        @test dict[key] == expected_values
     end
 end

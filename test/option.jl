@@ -45,16 +45,16 @@ using CliOptions
     ]
         args, expected = v
         option = Option("-d", "--depth")
-        result = CliOptions.ParseResult()
+        d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         if expected isa Type
-            @test_throws expected CliOptions.consume!(result, option, args, 1, ctx)
+            @test_throws expected CliOptions.consume!(d, option, args, 1, ctx)
         else
-            next_index = CliOptions.consume!(result, option, args, 1, ctx)
+            next_index = CliOptions.consume!(d, option, args, 1, ctx)
             @test next_index == expected[1]
             if expected[2] !== nothing
-                @test result.d == expected[2]
-                @test result.depth == expected[2]
+                @test d["d"] == expected[2]
+                @test d["depth"] == expected[2]
             end
         end
     end
@@ -74,18 +74,18 @@ using CliOptions
     ]
         _, T, args, expected = v
         option = Option(T, "-a")
-        result = CliOptions.ParseResult()
+        d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         if expected isa Type
-            @test_throws expected CliOptions.consume!(result, option, args, 1, ctx)
+            @test_throws expected CliOptions.consume!(d, option, args, 1, ctx)
         else
-            next_index = CliOptions.consume!(result, option, args, 1, ctx)
+            next_index = CliOptions.consume!(d, option, args, 1, ctx)
             @test next_index == expected[1]
-            @test result.a == expected[2]
+            @test d["a"] == expected[2]
         end
     end
 
-    @testset "consume(); validator, $(v[1])" for v in [
+    @testset "consume!(); validator, $(v[1])" for v in [
         ("[foo, bar], foo", ["-a", "foo"],
             String, ["foo", "bar"], (3, "foo")),
         ("[foo, bar], bar", ["-a", "bar"],
@@ -119,11 +119,11 @@ using CliOptions
     ]
         _, args, T, validator, expected = v
         option = Option(T, "-a"; validator = validator)
-        result = CliOptions.ParseResult()
+        d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         if expected[1] isa Type
             try
-                CliOptions.consume!(result, option, args, 1, ctx)
+                CliOptions.consume!(d, option, args, 1, ctx)
                 @test false  # Exception must be thrown
             catch ex
                 @test ex isa expected[1]
@@ -131,9 +131,9 @@ using CliOptions
                 @test occursin(expected[2], ex.msg)
             end
         else
-            next_index = CliOptions.consume!(result, option, args, 1, ctx)
+            next_index = CliOptions.consume!(d, option, args, 1, ctx)
             @test next_index == expected[1]
-            @test result.a == expected[2]
+            @test d["a"] == expected[2]
         end
     end
 
