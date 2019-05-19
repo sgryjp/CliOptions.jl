@@ -87,8 +87,12 @@ function Base.getindex(result::ParseResult, key)
     getindex(result._dict, k)
 end
 
-function Base.propertynames(result::ParseResult, private = false)
-    vcat([:_dict], [Symbol(k) for (k, v) ∈ getfield(result, :_dict)])
+function Base.propertynames(result::ParseResult; private = false)
+    props = [Symbol(k) for (k, v) in getfield(result, :_dict)]
+    if private
+        push!(props, :_defaults, :_dict)
+    end
+    props
 end
 
 function Base.getproperty(result::ParseResult, name::Symbol)
