@@ -25,6 +25,9 @@ let i = 1
     while i ≤ length(ARGS)
         if ARGS[i] == "-k" || ARGS[i] == "--keep-intermediates"
             keep_intermediates = true
+        elseif ARGS[i] == "-h" || ARGS[i] == "--help"
+            println("Usage: julia $PROGRAM_FILE [-h] [-k]")
+            Base.exit()
         end
         i += 1
     end
