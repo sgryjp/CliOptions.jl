@@ -98,41 +98,28 @@ using CliOptions
         end
     end
 
-    @testset "HelpOption; Integer" begin
-        let spec = CliOptionSpec(
+    @testset "HelpOption; onhelp = $(v[1])" for v in [
+        ("Integer", 42, (c) -> error("foobar$c"), (ErrorException, "foobar42")),
+        ("Nothing", nothing, Base.exit, (true, nothing)),
+        ("Function", () -> error("foo"), (c) -> error("$c"), (ErrorException, "foo")),
+    ]
+        _, onhelp, exitfunc, expected = v
+        spec = CliOptionSpec(
             HelpOption(),
-            onhelp = 42
+            onhelp = onhelp
         )
-            CliOptions._mock_exit_function((c) -> error("$c"))
-            try
-                buf = IOBuffer()
-                redirect_stdout(buf) do
-                    @test_throws ErrorException parse_args(spec, ["-h"])
+        CliOptions._mock_exit_function(exitfunc) do
+            buf = IOBuffer()
+            redirect_stdout(buf) do
+                if expected[1] isa Type
+                    @test_throws expected[1] parse_args(spec, ["-h"])
+                    output = String(take!(buf))
+                    @test occursin(output, expected[2])
+                else
+                    result = parse_args(spec, ["-h"])
+                    @test result.help == expected[1]
                 end
-                output = String(take!(buf))
-                @test output[1:6] == "Usage:"
-            finally
-                CliOptions._mock_exit_function(Base.exit)
             end
-        end
-    end
-
-    @testset "HelpOption; nothing" begin
-        let spec = CliOptionSpec(
-            HelpOption(),
-            onhelp = nothing
-        )
-            result = parse_args(spec, ["-h"])
-            @test result.help == true
-        end
-    end
-
-    @testset "HelpOption; Function" begin
-        let spec = CliOptionSpec(
-            HelpOption(),
-            onhelp = () -> error("foo"),
-        )
-            @test_throws ErrorException parse_args(spec, ["-h"])
         end
     end
 

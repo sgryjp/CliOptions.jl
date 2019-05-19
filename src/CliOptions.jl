@@ -1042,9 +1042,20 @@ end
 
 _exit = Base.exit
 
-function _mock_exit_function(f)
+function _mock_exit_function(mock)  # Testing utility
     global _exit
-    _exit = f
+    backup = _exit
+    _exit = mock
+    return _exit
+end
+
+function _mock_exit_function(f, mock)  # Testing utility
+    backup = _mock_exit_function(mock)
+    try
+        f()
+    finally
+        _mock_exit_function(backup)
+    end
 end
 
 function _normalize_args(args)
