@@ -93,7 +93,6 @@ using CliOptions: encode
             buf = IOBuffer()
             showerror(buf, ex)
             msg = String(take!(buf))
-            @test occursin(repr(typeof(ex)), msg)
             @test occursin("foo bar", msg)
         end
     end

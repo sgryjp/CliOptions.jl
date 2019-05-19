@@ -24,7 +24,7 @@ using CliOptions
             props = propertynames(result)
             @test sort(props) == [:bar, :foo]
             props = propertynames(result; private = true)
-            @test sort(props) == [:_dict, :bar, :foo]
+            @test sort(props) == [:_dict, :_errors, :bar, :foo]
         end
 
         @testset "getproperty" begin

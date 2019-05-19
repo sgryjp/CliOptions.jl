@@ -21,11 +21,11 @@ using CliOptions
 
     @testset "normalization; $(v[1])" for v in [
         (["-fa", "foo"], [FlagOption("-f"), Option("-a")], [:f => true, :a => "foo"]),
-        (["-af", "foo"], [FlagOption("-f"), Option("-a")], CliOptionError),
+        (["-af", "foo"], [FlagOption("-f"), Option("-a")], ErrorException),
         (["--foo-bar=baz"], [Option("--foo-bar")], [:foo_bar => "baz"]),
     ]
         args, options, expected = v
-        spec = CliOptionSpec(options...)
+        spec = CliOptionSpec(options...; onerror = error)
         if expected isa Type
             @test_throws expected parse_args(spec, args)
         else
@@ -40,12 +40,13 @@ using CliOptions
         @testset "required" begin
             spec = CliOptionSpec(
                 Option("-a"),
+                onerror = error,
             )
-            @test_throws CliOptionError parse_args(spec, String[])
-            @test_throws CliOptionError parse_args(spec, ["-a"])
+            @test_throws ErrorException parse_args(spec, String[])
+            @test_throws ErrorException parse_args(spec, ["-a"])
             args = parse_args(spec, ["-a", "bar"])
             @test args.a == "bar"
-            @test_throws CliOptionError parse_args(spec, ["-a", "bar", "-a"])
+            @test_throws ErrorException parse_args(spec, ["-a", "bar", "-a"])
         end
 
         @testset "omittable" begin
@@ -72,16 +73,17 @@ using CliOptions
     end
 
     @testset "CounterOption; $(v[1:3])" for v in [
-        (Int8, 127, "--add", InexactError),
+        (Int8, 127, "--add", ErrorException),
         (Int8, 126, "--add", Int8(127)),
         (Int8, -127, "--sub", Int8(-128)),
-        (Int8, -128, "--sub", InexactError),
+        (Int8, -128, "--sub", ErrorException),
         (Int128, 0, "--add --sub", Int128(0)),
     ]
         T, default, args, expected = v
         spec = CliOptionSpec(CounterOption(T, "--add";
                                            decrementers = ["--sub"],
-                                           default = default))
+                                           default = default),
+                             onerror = error)
         if expected isa Type
             @test_throws expected parse_args(spec, split(args))
         else
@@ -119,28 +121,28 @@ using CliOptions
 
     @testset "Positional; $(v[1]), $(v[4])" for v in [
         # single, required
-        ("single, required", false, nothing, String[], CliOptionError),
+        ("single, required", false, nothing, String[], ErrorException),
         ("single, required", false, nothing, ["a"], "a"),
-        ("single, required", false, nothing, ["a", "b"], CliOptionError),
+        ("single, required", false, nothing, ["a", "b"], ErrorException),
         ("single, required", false, nothing, ["-1"], "-1"),
-        ("single, required", false, nothing, ["-7"], CliOptionError),
-        ("single, required", false, nothing, ["-a"], CliOptionError),
+        ("single, required", false, nothing, ["-7"], ErrorException),
+        ("single, required", false, nothing, ["-a"], ErrorException),
 
         # single, omittable
         ("single, omittable", false, "foo.txt", String[], "foo.txt"),
         ("single, omittable", false, "foo.txt", ["a"], "a"),
-        ("single, omittable", false, "foo.txt", ["a", "b"], CliOptionError),
+        ("single, omittable", false, "foo.txt", ["a", "b"], ErrorException),
 
         # multiple, required
-        ("multiple, required", true, nothing, String[], CliOptionError),
+        ("multiple, required", true, nothing, String[], ErrorException),
         ("multiple, required", true, nothing, ["a"], ["a"]),
         ("multiple, required", true, nothing, ["a", "b"], ["a", "b"]),
         ("multiple, required", true, nothing, ["a", "-1"], ["a", "-1"]),
         ("multiple, required", true, nothing, ["a", "-7"], ["a"]),
-        ("multiple, required", true, nothing, ["a", "-a"], CliOptionError),
+        ("multiple, required", true, nothing, ["a", "-a"], ErrorException),
         ("multiple, required", true, nothing, ["-1", "a"], ["-1", "a"]),
         ("multiple, required", true, nothing, ["-7", "a"], ["a"]),
-        ("multiple, required", true, nothing, ["-a", "a"], CliOptionError),
+        ("multiple, required", true, nothing, ["-a", "a"], ErrorException),
 
         # multiple, omittable
         ("multiple, omittable", true, "foo.txt", String[], "foo.txt"),
@@ -151,8 +153,9 @@ using CliOptions
         spec = CliOptionSpec(
             FlagOption("-7"),
             Positional("file", "files"; multiple = multiple, default = default),
+            onerror = error,
         )
-        if expected == CliOptionError
+        if expected == ErrorException
             @test_throws expected parse_args(spec, args)
         else
             result = parse_args(spec, args)
@@ -163,20 +166,21 @@ using CliOptions
 
     @testset "RemainderOption; $(v[1]), $(v[2])" for v in [
         (["--"], String[], AbstractString[]),
-        (["--"], ["a", "-7", "--c"], CliOptionError),
+        (["--"], ["a", "-7", "--c"], ErrorException),
         (["--"], ["--", "a", "-7", "--c"], ["a", "-7", "--c"]),
     ]
         names, args, expected = v
         spec = CliOptionSpec(
             FlagOption("-7"),
             RemainderOption(names...),
+            onerror = error,
         )
         if expected isa Type
             try
                 parse_args(spec, args)
                 @assert false "Must throw an exception"
             catch ex
-                @test ex isa CliOptionError
+                @test ex isa ErrorException
                 @test occursin(repr(args[1]), ex.msg)
             end
         else
@@ -191,14 +195,15 @@ using CliOptions
                 Option("-a"),
                 Option("-b"),
             ),
+            onerror = error,
         )
-        @test_throws CliOptionError parse_args(spec, String[])
-        @test_throws CliOptionError parse_args(spec, split("-a foo"))
-        @test_throws CliOptionError parse_args(spec, split("-b bar"))
+        @test_throws ErrorException parse_args(spec, String[])
+        @test_throws ErrorException parse_args(spec, split("-a foo"))
+        @test_throws ErrorException parse_args(spec, split("-b bar"))
         args = parse_args(spec, split("-a foo -b bar"))
         @test args.a == "foo"
         @test args.b == "bar"
-        @test_throws CliOptionError parse_args(spec, split("-a foo -b bar baz"))
+        @test_throws ErrorException parse_args(spec, split("-a foo -b bar baz"))
     end
 
     @testset "MutexGroup" begin
@@ -208,8 +213,9 @@ using CliOptions
                 Option("-b"),
                 Option("-c"),
             ),
+            onerror = error,
         )
-        @test_throws CliOptionError parse_args(spec, String[])
+        @test_throws ErrorException parse_args(spec, String[])
         args = parse_args(spec, split("-a foo"))
         @test args.a == "foo"
         @test args.b === nothing
@@ -218,9 +224,37 @@ using CliOptions
         @test args.a === nothing
         @test args.b == "bar"
         @test args.c === nothing
-        @test_throws CliOptionError parse_args(spec, split("-a foo -b bar"))
-        @test_throws CliOptionError parse_args(spec, split("-a foo -c baz"))
-        @test_throws CliOptionError parse_args(spec, split("-a foo -b bar -c baz"))
-        @test_throws CliOptionError parse_args(spec, split("-a foo quux"))
+        @test_throws ErrorException parse_args(spec, split("-a foo -b bar"))
+        @test_throws ErrorException parse_args(spec, split("-a foo -c baz"))
+        @test_throws ErrorException parse_args(spec, split("-a foo -b bar -c baz"))
+        @test_throws ErrorException parse_args(spec, split("-a foo quux"))
+    end
+
+    @testset "onerror = $(v[1])" for v in [
+        ("Integer", 42, (c) -> error("foobar$c"), (ErrorException, "foobar42")),
+        ("Nothing", nothing, () -> error("foo bar"), ("\"-a\"", nothing)),
+        ("Function", (msg) -> error("foo"), (c) -> error("$c"), (ErrorException, "foo")),
+    ]
+        t, onerror, exitfunc, expected = v
+        spec = CliOptionSpec(
+            FlagOption("-f"),
+            Option("-a"),
+            CounterOption("-v"),
+            onerror = onerror
+        )
+        CliOptions._mock_exit_function(exitfunc) do
+            buf = IOBuffer()
+            redirect_stderr(buf) do
+                if expected[1] isa Type
+                    tr = @test_throws expected[1] parse_args(spec, ["-fva"])
+                    if tr isa Test.Pass
+                        @test occursin(expected[2], tr.value.msg)
+                    end
+                else
+                    result = parse_args(spec, ["-fva"])
+                    @test occursin(expected[1], result._errors[1])
+                end
+            end
+        end
     end
 end

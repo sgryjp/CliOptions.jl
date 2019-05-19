@@ -13,7 +13,7 @@ struct CliOptionError <: Exception
     msg::String
 end
 
-Base.showerror(io::IO, e::CliOptionError) = print(io, "CliOptionError: " * e.msg)
+Base.showerror(io::IO, e::CliOptionError) = print(io, e.msg)
 
 
 """
@@ -66,15 +66,21 @@ end
 """
     CliOptions.ParseResult()
 
-Dictionary like object holding parsing result of command line options. [`parse_args`](@ref)
-function always returns a value of this type. See example of the function.
+Dict-like object holding parsing result of command line options. The values can be accessed
+using either:
 
-This type is not exported.
+1. dot notation (e.g.: `result.num_workers`)
+2. bracket notation (e.g.: `result["num_workers"]`)
+
+This is the type [`parse_args`](@ref) function returns. If the function detected errors,
+it stores error messages into `_errors` field of this type. This may be useful if you let
+the program continue running on errors (see `onerror` parameter of `CliOptionSpec`).
 """
 struct ParseResult
     _dict
+    _errors
 
-    ParseResult() = new(Dict{String,Any}())
+    ParseResult() = new(Dict{String,Any}(), String[])
 end
 
 function Base.show(io::IO, x::ParseResult)
@@ -90,14 +96,14 @@ end
 function Base.propertynames(result::ParseResult; private = false)
     props = [Symbol(k) for (k, v) in getfield(result, :_dict)]
     if private
-        push!(props, :_dict)
+        push!(props, :_dict, :_errors)
     end
     sort!(props)
 end
 
 function Base.getproperty(result::ParseResult, name::Symbol)
-    if name == :_dict
-        return getfield(result, :_dict)
+    if name in (:_dict, :_errors)
+        return getfield(result, name)
     else
         return getfield(result, :_dict)[String(name)]
     end
@@ -840,7 +846,8 @@ end
 """
     CliOptionSpec(options::AbstractOption...;
                   program = PROGRAM_FILE,
-                  onhelp = 0)
+                  onhelp = 0,
+                  onerror = 1)
 
 A type representing a command line option specification.
 
@@ -860,6 +867,22 @@ omitted, `Base.PROGRAM_FILE` will be used.
 
 The default value is `0`.
 
+`onerror` parameter controls the action when an error was detected on parsing arguments.
+Available choices are:
+
+1. An `Integer`
+   - The running program will print an error message along with a help message and exit with
+     the status code.
+2. `nothing`
+   - Ignore errors. Note that error messages are stored in `_errors` field of the returning
+     [`ParseResult`](@ref) so you can examine them later.
+3. A function which takes an error message
+   - Example 1) `onerror = (msg) -> (@warn msg)` ... Warn the error but continue processing
+   - Example 2) `onerror = error` ... Throw `ErrorException` using `Base.exit`, instead of
+     exiting
+
+The default value is `1`.
+
 #### Example: Using a function for `onhelp` parameter
 
 ```jldoctest
@@ -873,27 +896,47 @@ spec = CliOptionSpec(
     end,
     program = "onhelptest.jl"
 )
-args = parse_args(spec, ["-h"])  # The program does not exit here
-println(args.help)
+options = parse_args(spec, ["-h"])  # The program does not exit here
+println(options.help)
 
 # output
 
 Usage: onhelptest.jl [-h]
 true
 ```
+
+#### Example: Using a function for `onerror` parameter
+
+```jldoctest
+using CliOptions
+
+spec = CliOptionSpec(
+    Option("--required-argument"),
+    onerror = (msg) -> println("Warning: \$msg"),
+)
+options = parse_args(spec, String[])
+println(repr(options.required_argument))
+
+# output
+
+Warning: Option \"--required-argument\" must be specified
+nothing
+```
 """
 struct CliOptionSpec
     root::OptionGroup
     program::String
     onhelp::Any
+    onerror::Any
 
     function CliOptionSpec(options::AbstractOption...;
                            program = PROGRAM_FILE,
-                           onhelp = 0)
+                           onhelp = 0,
+                           onerror = 0)
         if program == ""
             program = "PROGRAM"  # may be called inside REPL
         end
-        new(OptionGroup(options...), program, onhelp)
+        new(OptionGroup(options...), program, onhelp, onerror)
     end
 end
 
@@ -975,6 +1018,17 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParseResult()
     ctx = ParseContext()
 
+    handle_error(spec, msg) = begin
+        if spec.onerror isa Integer
+            printstyled(stderr, "ERROR: "; color = Base.error_color())
+            println(stderr, msg)
+            print_usage(stderr, spec)
+            _exit(spec.onerror)
+        elseif spec.onerror !== nothing
+            spec.onerror(msg)
+        end
+    end
+
     # Store all options in a vector and pick special options
     help_option = nothing
     remainders_option = nothing
@@ -1015,17 +1069,31 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     # Parse arguments
     i = 1
     while i ≤ length(args)
-        next_index = consume!(result._dict, spec.root, args, i, ctx)
-        if next_index ≤ 0
-            throw(CliOptionError("Unrecognized argument: \"$(args[i])\""))
+        try
+            next_index = consume!(result._dict, spec.root, args, i, ctx)
+            if next_index ≤ 0
+                throw(CliOptionError("Unrecognized argument: \"$(args[i])\""))
+            end
+            i = next_index
+        catch ex
+            buf = IOBuffer()
+            showerror(buf, ex)
+            msg = String(take!(buf))
+            push!(result._errors, msg)
+            handle_error(spec, msg)
+            i += 1
         end
-
-        i = next_index
     end
 
     # Take care of omitted options
-    for option ∈ (o for o in spec.root.options if get(ctx.usage_count, o, 0) ≤ 0)
-        check_usage_count(option, ctx)
+    for option in (o for o in spec.root.options if get(ctx.usage_count, o, 0) ≤ 0)
+        try
+            check_usage_count(option, ctx)
+        catch ex
+            ex::CliOptionError
+            push!(result._errors, ex.msg)
+            handle_error(spec, ex.msg)
+        end
     end
 
     result
