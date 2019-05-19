@@ -40,7 +40,7 @@ using CliOptions
         end
     end
 
-    @testset "consume(); $(v[1])" for v in [
+    @testset "consume!(); $(v[1])" for v in [
         ([], AssertionError),
         (["-ab"], AssertionError),
         (["-h"], true),
@@ -48,14 +48,14 @@ using CliOptions
     ]
         args, expected = v
         option = HelpOption()
-        result = CliOptions.ParseResult()
+        d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         if expected isa Type
-            @test_throws expected CliOptions.consume!(result, option, args, 1, ctx)
+            @test_throws expected CliOptions.consume!(d, option, args, 1, ctx)
         else
-            next_index = CliOptions.consume!(result, option, args, 1, ctx)
+            next_index = CliOptions.consume!(d, option, args, 1, ctx)
             @test next_index == 1 + length(args)
-            @test result.help == expected
+            @test d["help"] == expected
         end
     end
 end

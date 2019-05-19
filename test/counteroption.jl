@@ -69,46 +69,46 @@ using CliOptions
         (["--quiet"], (2, -1)),
     ]
         args, expected = v
-        result = CliOptions.ParseResult()
+        d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = CounterOption("-v", "--verbose"; decrementers = ["-q", "--quiet"])
-        next_index = CliOptions.consume!(result, option, args, 1, ctx)
+        next_index = CliOptions.consume!(d, option, args, 1, ctx)
         @test next_index == expected[1]
-        @test result.verbose == expected[2]
+        @test d["verbose"] == expected[2]
     end
 
     @testset "consume!(); type, $v" for v in [
         Int, Int8, Int128,
     ]
         T = v
-        result = CliOptions.ParseResult()
+        d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = CounterOption(T, "-v")
-        CliOptions.consume!(result, option, ["-v"], 1, ctx)
-        @test typeof(result.v) == T
+        CliOptions.consume!(d, option, ["-v"], 1, ctx)
+        @test typeof(d["v"]) == T
     end
 
     @testset "consume!(); upper limit" begin
-        let result = CliOptions.ParseResult()
+        let d = Dict{String,Any}()
             ctx = CliOptions.ParseContext()
             option = CounterOption(Int8, "-v")
             for _ in 1:127
-                CliOptions.consume!(result, option, ["-v"], 1, ctx)
+                CliOptions.consume!(d, option, ["-v"], 1, ctx)
             end
-            @test result.v == typemax(Int8)
-            @test_throws InexactError CliOptions.consume!(result, option, ["-v"], 1, ctx)
+            @test d["v"] == typemax(Int8)
+            @test_throws InexactError CliOptions.consume!(d, option, ["-v"], 1, ctx)
         end
     end
 
     @testset "consume!(); lower limit" begin
-        let result = CliOptions.ParseResult()
+        let d = Dict{String,Any}()
             ctx = CliOptions.ParseContext()
             option = CounterOption(Int8, "-v", decrementers = "-q")
             for _ in 1:128
-                CliOptions.consume!(result, option, ["-q"], 1, ctx)
+                CliOptions.consume!(d, option, ["-q"], 1, ctx)
             end
-            @test result.v == typemin(Int8)
-            @test_throws InexactError CliOptions.consume!(result, option, ["-q"], 1, ctx)
+            @test d["v"] == typemin(Int8)
+            @test_throws InexactError CliOptions.consume!(d, option, ["-q"], 1, ctx)
         end
     end
 end

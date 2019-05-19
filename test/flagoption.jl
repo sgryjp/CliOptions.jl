@@ -55,12 +55,12 @@ using CliOptions
         (["--case-sensitive"], (2, false)),
     ]
         args, expected = v
-        result = CliOptions.ParseResult()
+        d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = FlagOption("-i", "--ignore-case"; negators = ["-I", "--case-sensitive"])
-        next_index = CliOptions.consume!(result, option, args, 1, ctx)
+        next_index = CliOptions.consume!(d, option, args, 1, ctx)
         @test next_index == expected[1]
-        @test result.ignore_case == expected[2]
-        @test result.case_sensitive == !expected[2]
+        @test d["ignore_case"] == expected[2]
+        @test d["case_sensitive"] == !expected[2]
     end
 end
