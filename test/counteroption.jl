@@ -88,27 +88,24 @@ using CliOptions
         @test typeof(d["v"]) == T
     end
 
-    @testset "consume!(); upper limit" begin
-        let d = Dict{String,Any}()
-            ctx = CliOptions.ParseContext()
-            option = CounterOption(Int8, "-v")
-            for _ in 1:127
-                CliOptions.consume!(d, option, ["-v"], 1, ctx)
-            end
-            @test d["v"] == typemax(Int8)
-            @test_throws InexactError CliOptions.consume!(d, option, ["-v"], 1, ctx)
+    @testset "consume!(); overflow, $(v[1][1]) × $(v[2])" for v in [
+        (["-v"], 127, 127),
+        (["-v"], 128, CliOptionError),
+        (["-q"], 128, -128),
+        (["-q"], 129, CliOptionError),
+    ]
+        args, count, expected = v
+        d = Dict{String,Any}()
+        ctx = CliOptions.ParseContext()
+        option = CounterOption(Int8, "-v"; decrementers = "-q")
+        for _ in 1:count-1
+            CliOptions.consume!(d, option, args, 1, ctx)
         end
-    end
-
-    @testset "consume!(); lower limit" begin
-        let d = Dict{String,Any}()
-            ctx = CliOptions.ParseContext()
-            option = CounterOption(Int8, "-v", decrementers = "-q")
-            for _ in 1:128
-                CliOptions.consume!(d, option, ["-q"], 1, ctx)
-            end
-            @test d["v"] == typemin(Int8)
-            @test_throws InexactError CliOptions.consume!(d, option, ["-q"], 1, ctx)
+        if expected isa Type
+            @test_throws expected CliOptions.consume!(d, option, args, 1, ctx)
+        else
+            CliOptions.consume!(d, option, args, 1, ctx)
+            @test d["v"] == expected
         end
     end
 end

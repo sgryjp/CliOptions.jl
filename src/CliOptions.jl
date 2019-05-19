@@ -405,14 +405,17 @@ function consume!(d::Dict{String,Any}, o::CounterOption, args, i, ctx)
     if diff == 0
         return 0
     end
-    value = o.T(get(d, encode(o.names[1]), 0) + diff)
+    value = get(d, encode(o.names[1]), 0) + diff
+    if !(typemin(o.T) ≤ value ≤ typemax(o.T))
+        throw(CliOptionError("Too many \"$(args[i])\""))
+    end
 
     # Update counter
     ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
 
     # Construct parsed values
     for name in o.names
-        d[encode(name)] = value
+        d[encode(name)] = o.T(value)
     end
     i + 1
 end
