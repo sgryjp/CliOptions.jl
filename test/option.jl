@@ -137,6 +137,37 @@ using CliOptions
         end
     end
 
+    @testset "consume!(); until, $(v[1])" for v in [
+        ("nothing, String", String, nothing, (3, "1"))
+        ("nothing, Int", Int, nothing, (3, 1))
+        ("4, String", String, "4", (6, ["1", "2", "3"]))
+        ("4, Int", Int, "4", (6, [1, 2, 3]))
+        ("[4, 3], String", String, ["4", "3"], (5, ["1", "2"]))
+        ("[4, 3], Int", Int, ["4", "3"], (5, [1, 2]))
+        ("(4, 3), String", String, ("4", "3"), (5, ["1", "2"]))
+        ("(4, 3), Int", Int, ("4", "3"), (5, [1, 2]))
+    ]
+        _, T, until, expected = v
+        args = split("-a 1 2 3 4")
+        option = Option(T, "-a"; until = until)
+        d = Dict{String,Any}()
+        ctx = CliOptions.ParseContext()
+        if expected[1] isa Type
+            try
+                CliOptions.consume!(d, option, args, 1, ctx)
+                @test false  # Exception must be thrown
+            catch ex
+                @test ex isa expected[1]
+                @test occursin(args[1], ex.msg)
+                @test occursin(expected[2], ex.msg)
+            end
+        else
+            next_index = CliOptions.consume!(d, option, args, 1, ctx)
+            @test next_index == expected[1]
+            @test d["a"] == expected[2]
+        end
+    end
+
     @testset "check_usage_count(); $(v[1])" for v in [
         ("required, 0", nothing, 0, CliOptionError),
         ("required, 1", nothing, 1, nothing),

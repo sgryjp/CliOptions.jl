@@ -112,7 +112,7 @@ end
 
 """
     Option([type=String,] primary_name::String, secondary_name::String = "";
-           default = nothing, validator = nothing, help = "")
+           default = nothing, until = nothing, validator = nothing, help = "")
 
 Type representing a command line option whose value is a following argument. Two forms of
 option notations are supported:
@@ -144,6 +144,12 @@ Note that if you want to allow omitting the option but there is no good default 
 consider using `missing` as default value *(NOTE: this `missing` is not "statistically
 missing"... isn't there better way?)*.
 
+If `until` parameter is specified, following arguments will be collected into a vector to be
+the option's value until an argument which is or one of the `until` parameter appears. In
+this case, type of the option's value will be `Vector{T}` where `T` is the type specified
+with `type` parameter. `until` parameter can be a string, a vector or tuple of strings, or
+`nothing`. Default value is `nothing`; no collection will be done.
+
 `validator` is used to check whether a command line argument is acceptable or not. If there
 is an argument which is rejected by the given validator, [`parse_args`](@ref) function will
 throw a `CliOptionError`. `validator` can be one of:
@@ -170,22 +176,25 @@ If you want an option which does not take a command line argument as its value, 
 struct Option <: AbstractOption
     names::Union{Tuple{String},Tuple{String,String}}
     T::Type
-    validator::Any
     default::Any
+    until::Union{Nothing,String,Vector{String},Tuple{Vararg{String}}}
+    validator::Any
     help::String
 
     function Option(T::Type, primary_name::String, secondary_name::String = "";
-                    default::Any = nothing, validator::Any = nothing, help::String = "")
+                    default::Any = nothing, until = nothing,
+                    validator::Any = nothing, help::String = "")
         names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
         _validate_option_names(Option, names)
-        new(names, T, validator, default, help)
+        new(names, T, default, until, validator, help)
     end
 end
 
 function Option(primary_name::String, secondary_name::String = "";
-                default::Any = nothing, validator::Any = nothing, help::String = "")
+                default::Any = nothing, until = nothing, validator::Any = nothing,
+                help::String = "")
     Option(String, primary_name, secondary_name;
-           default = default, validator = validator, help = help)
+           default = default, until = until, validator = validator, help = help)
 end
 
 function set_default!(d::Dict{String,Any}, o::Option)
@@ -202,18 +211,54 @@ function consume!(d::Dict{String,Any}, o::Option, args, i, ctx)
     if args[i] ∉ o.names
         return 0
     end
-    if length(args) < i + 1
-        throw(CliOptionError("A value is needed for option \"$(args[i])\""))
-    end
+    if o.until === nothing
+        # Ensure at least one argument is available
+        if length(args) < i + 1
+            throw(CliOptionError("A value is needed for option \"$(args[i])\""))
+        end
 
-    # Update counter
-    ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
+        # Update counter
+        ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
 
-    value = _parse(o.T, args[i + 1], o.validator, args[i])
-    for name in o.names
-        d[encode(name)] = value
+        # Parse the argument as value
+        value = _parse(o.T, args[i + 1], o.validator; optname = args[i])
+        for name in o.names
+            d[encode(name)] = value
+        end
+        i + 2
+    else
+        _match(term, arg) = begin
+            if term isa String
+                arg == term
+            else
+                arg in term
+            end
+        end
+
+        # Scan for the last argument
+        term_index = i + 1
+        while !_match(o.until, args[term_index])
+            if length(args) == term_index
+                msg = "\"$(o.names[1])\" needs \"$(o.until)\" as an end-mark"
+                throw(CliOptionError(msg))
+            end
+            term_index += 1
+        end
+
+        # Update counter
+        ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
+
+        # Parse the arguments as value
+        values = o.T[]
+        for j = i+1:term_index-1
+            value = _parse(o.T, args[j], o.validator; optname = args[i])
+            push!(values, value)
+        end
+        for name in o.names
+            d[encode(name)] = values
+        end
+        i + term_index
     end
-    i + 2
 end
 
 function check_usage_count(o::Option, ctx)
@@ -1188,7 +1233,7 @@ function _validate_option_names(T, names; allow_nameless = false)
     end
 end
 
-function _parse(T, optval::AbstractString, validator::Any, optname = "")
+function _parse(T, optval::AbstractString, validator::Any; optname = "")
     parsed_value::Union{Nothing,T} = nothing
     try
         # Use `parse` if available, or use constructor of the type
