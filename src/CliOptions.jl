@@ -1296,14 +1296,15 @@ function _parse(T, optval::AbstractString, validator::Any; optname = "")
     parsed_value
 end
 
+const _usage_indent = 27
 function print_description(io, names, val, help)
     heading = join(names, ", ") * (val != "" ? " $val" : "")
     print(io, repeat(" ", 4) * heading)
-    if 16 ≤ length(heading) + 4
+    if _usage_indent ≤ length(heading) + 4
         println(io)
-        println(io, repeat(" ", 16) * help)
+        println(io, repeat(" ", _usage_indent) * help)
     else
-        println(io, repeat(" ", 16 - 4 - length(heading)) * help)
+        println(io, repeat(" ", _usage_indent - 4 - length(heading)) * help)
     end
     println(io)
 end
