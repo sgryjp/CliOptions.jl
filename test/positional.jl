@@ -88,7 +88,7 @@ using CliOptions: consume!
         end
     end
 
-    @testset "consume!(); validator, $(v[1])" for v in [
+    @testset "consume!(); requirement, $(v[1])" for v in [
         ("[7, 13], 13", ["13"],
             Int, [7, 13], (2, 13)),
         ("[7, 13], 7", ["7"],
@@ -120,8 +120,8 @@ using CliOptions: consume!
         ("String -> String, 7", ["7"],
             Int, n -> iseven(n) ? "" : "must be even", (CliOptionError, "must be even")),
     ]
-        _, args, T, validator, expected = v
-        option = Positional(T, "name"; validator = validator)
+        _, args, T, requirement, expected = v
+        option = Positional(T, "name"; requirement = requirement)
         let d = Dict{String,Any}()
             ctx = CliOptions.ParseContext()
             if expected[1] isa Type

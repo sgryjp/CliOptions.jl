@@ -85,7 +85,7 @@ using CliOptions
         end
     end
 
-    @testset "consume!(); validator, $(v[1])" for v in [
+    @testset "consume!(); requirement, $(v[1])" for v in [
         ("[foo, bar], foo", ["-a", "foo"],
             String, ["foo", "bar"], (3, "foo")),
         ("[foo, bar], bar", ["-a", "bar"],
@@ -117,8 +117,8 @@ using CliOptions
         ("String -> String, 7", ["-a", "7"],
             Int, n -> iseven(n) ? "" : "must be even", (CliOptionError, "must be even")),
     ]
-        _, args, T, validator, expected = v
-        option = Option(T, "-a"; validator = validator)
+        _, args, T, requirement, expected = v
+        option = Option(T, "-a"; requirement = requirement)
         d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         if expected[1] isa Type

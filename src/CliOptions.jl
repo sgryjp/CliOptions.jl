@@ -112,7 +112,7 @@ end
 
 """
     Option([type=String,] primary_name::String, secondary_name::String = "";
-           default = missing, until = nothing, validator = nothing, help = "")
+           default = missing, until = nothing, requirement = nothing, help = "")
 
 Type representing a command line option whose value is a following argument. Two forms of
 option notations are supported:
@@ -149,12 +149,11 @@ this case, type of the option's value will be `Vector{T}` where `T` is the type 
 with `type` parameter. `until` parameter can be a string, a vector or tuple of strings, or
 `nothing`. Default value is `nothing`; no collection will be done.
 
-`validator` is used to check whether a command line argument is acceptable or not. If there
-is an argument which is rejected by the given validator, [`parse_args`](@ref) function will
-throw a `CliOptionError`. `validator` can be one of:
+`requirement` determines how to validate the option's value. If the option's value does not
+meet the requirement, it's considered an error. `requirement` can be one of:
 
 1. `nothing`
-   - No validation will be done; any value will be accepted
+   - Any value will be accepted
 2. A list of acceptable values
    - Arguments which matches one of the values will be accepted
    - Any iterable can be used to specify acceptable values
@@ -177,23 +176,23 @@ struct Option <: AbstractOption
     T::Type
     default::Any
     until::Union{Nothing,String,Vector{String},Tuple{Vararg{String}}}
-    validator::Any
+    requirement::Any
     help::String
 
     function Option(T::Type, primary_name::String, secondary_name::String = "";
                     default::Any = missing, until = nothing,
-                    validator::Any = nothing, help::String = "")
+                    requirement::Any = nothing, help::String = "")
         names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
         _validate_option_names(Option, names)
-        new(names, T, default, until, validator, help)
+        new(names, T, default, until, requirement, help)
     end
 end
 
 function Option(primary_name::String, secondary_name::String = "";
-                default::Any = missing, until = nothing, validator::Any = nothing,
+                default::Any = missing, until = nothing, requirement::Any = nothing,
                 help::String = "")
     Option(String, primary_name, secondary_name;
-           default = default, until = until, validator = validator, help = help)
+           default = default, until = until, requirement = requirement, help = help)
 end
 
 function set_default!(d::Dict{String,Any}, o::Option)
@@ -220,7 +219,7 @@ function consume!(d::Dict{String,Any}, o::Option, args, i, ctx)
         ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
 
         # Parse the argument as value
-        value = _parse(o.T, args[i + 1], o.validator; optname = args[i])
+        value = _parse(o.T, args[i + 1], o.requirement; optname = args[i])
         for name in o.names
             d[encode(name)] = value
         end
@@ -250,7 +249,7 @@ function consume!(d::Dict{String,Any}, o::Option, args, i, ctx)
         # Parse the arguments as value
         values = o.T[]
         for j = i+1:term_index-1
-            value = _parse(o.T, args[j], o.validator; optname = args[i])
+            value = _parse(o.T, args[j], o.requirement; optname = args[i])
             push!(values, value)
         end
         for name in o.names
@@ -533,20 +532,20 @@ end
 
 """
     Positional([type=String,] singular_name, plural_name = "";
-               multiple = false, validator = nothing,
+               multiple = false, requirement = nothing,
                default = missing, help = "")
 
 `Positional` represents a command line argument which are not an option name nor an option
 value.
 
-`validator` is used to check whether a command line argument is acceptable or not. See
+`requirement` determines how to validate positional arguments. See explanation of
 [Option](@ref) for more detail.
 """
 struct Positional <: AbstractOption
     names::Union{Tuple{String},Tuple{String,String}}
     T::Type
     multiple::Bool
-    validator::Any
+    requirement::Any
     default::Any
     help::String
 
@@ -554,7 +553,7 @@ struct Positional <: AbstractOption
                         singular_name::String,
                         plural_name::String = "";
                         multiple::Bool = false,
-                        validator::Any = nothing,
+                        requirement::Any = nothing,
                         default::Any = missing,
                         help::String = "")
         if singular_name == ""
@@ -568,9 +567,10 @@ struct Positional <: AbstractOption
         end
 
         if plural_name == ""
-            return new((singular_name,), T, multiple, validator, default, help)
+            return new((singular_name,), T, multiple, requirement, default, help)
         else
-            return new((singular_name, plural_name), T, multiple, validator, default, help)
+            return new((singular_name, plural_name),
+                       T, multiple, requirement, default, help)
         end
     end
 end
@@ -578,11 +578,12 @@ end
 function Positional(singular_name::String,
                     plural_name::String = "";
                     multiple::Bool = false,
-                    validator::Any = nothing,
+                    requirement::Any = nothing,
                     default::Any = missing,
                     help::String = "")
     Positional(String, singular_name, plural_name;
-               multiple = multiple, validator = validator, default = default, help = help)
+               multiple = multiple, requirement = requirement, default = default,
+               help = help)
 end
 
 function set_default!(d::Dict{String,Any}, o::Positional)
@@ -615,7 +616,7 @@ function consume!(d::Dict{String,Any}, o::Positional, args, i, ctx)
                 break  # Do not consume an option which looks like a negative number
             end
         end
-        push!(values, _parse(o.T, arg, o.validator))
+        push!(values, _parse(o.T, arg, o.requirement))
     end
     if length(values) == 0
         return 0  # No arguments consumable
@@ -1234,7 +1235,7 @@ function _validate_option_names(T, names; allow_nameless = false)
     end
 end
 
-function _parse(T, optval::AbstractString, validator::Any; optname = "")
+function _parse(T, optval::AbstractString, requirement::Any; optname = "")
     parsed_value::Union{Nothing,T} = nothing
     try
         # Use `parse` if available, or use constructor of the type
@@ -1265,19 +1266,19 @@ function _parse(T, optval::AbstractString, validator::Any; optname = "")
 
     # Validate the parsed result
     reason = ""
-    if validator isa Function
-        rv = validator(parsed_value)
+    if requirement isa Function
+        rv = requirement(parsed_value)
         if rv == false || (rv isa String && rv != "")
             reason = rv isa Bool ? "validation failed" : rv
         end
-    elseif validator isa Regex
-        if match(validator, optval) === nothing
-            reason = "must match for $(validator)"
+    elseif requirement isa Regex
+        if match(requirement, optval) === nothing
+            reason = "must match for $(requirement)"
         end
-    elseif validator !== nothing
-        if !any(x == parsed_value for x in validator)
+    elseif requirement !== nothing
+        if !any(x == parsed_value for x in requirement)
             reason = "must be one of " * join([isa(s, Regex) ? "$s" : "\"$s\""
-                                               for s in validator],
+                                               for s in requirement],
                                               ", ", " or ")
         end
     end
