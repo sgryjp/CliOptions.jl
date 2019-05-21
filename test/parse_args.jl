@@ -11,7 +11,8 @@ using CliOptions
         spec = CliOptionSpec(FlagOption("-a"),
                              CounterOption("-b"),
                              Option("-c"),
-                             Positional("d"))
+                             Positional("d"),
+                             onerror = error)
         result = parse_args(spec, args)
         @test result.a == true
         @test result.b == 1
@@ -51,10 +52,11 @@ using CliOptions
 
         @testset "omittable" begin
             spec = CliOptionSpec(
-                Option("-a"; default = missing),
+                Option("-a"; default = nothing),
+                onerror = error,
             )
             args = parse_args(spec, String[])
-            @test ismissing(args.a)
+            @test args.a === nothing
         end
     end
 
@@ -65,7 +67,8 @@ using CliOptions
     ]
         args, expected = v
         spec = CliOptionSpec(
-            FlagOption("-a"; negators = "-b")
+            FlagOption("-a"; negators = "-b"),
+            onerror = error,
         )
         result = parse_args(spec, args)
         @test result.a == expected
@@ -102,7 +105,8 @@ using CliOptions
         _, onhelp, exitfunc, expected = v
         spec = CliOptionSpec(
             HelpOption(),
-            onhelp = onhelp
+            onhelp = onhelp,
+            onerror = error,
         )
         CliOptions._mock_exit_function(exitfunc) do
             buf = IOBuffer()
@@ -121,12 +125,12 @@ using CliOptions
 
     @testset "Positional; $(v[1]), $(v[4])" for v in [
         # single, required
-        ("single, required", false, nothing, String[], ErrorException),
-        ("single, required", false, nothing, ["a"], "a"),
-        ("single, required", false, nothing, ["a", "b"], ErrorException),
-        ("single, required", false, nothing, ["-1"], "-1"),
-        ("single, required", false, nothing, ["-7"], ErrorException),
-        ("single, required", false, nothing, ["-a"], ErrorException),
+        ("single, required", false, missing, String[], ErrorException),
+        ("single, required", false, missing, ["a"], "a"),
+        ("single, required", false, missing, ["a", "b"], ErrorException),
+        ("single, required", false, missing, ["-1"], "-1"),
+        ("single, required", false, missing, ["-7"], ErrorException),
+        ("single, required", false, missing, ["-a"], ErrorException),
 
         # single, omittable
         ("single, omittable", false, "foo.txt", String[], "foo.txt"),
@@ -134,15 +138,15 @@ using CliOptions
         ("single, omittable", false, "foo.txt", ["a", "b"], ErrorException),
 
         # multiple, required
-        ("multiple, required", true, nothing, String[], ErrorException),
-        ("multiple, required", true, nothing, ["a"], ["a"]),
-        ("multiple, required", true, nothing, ["a", "b"], ["a", "b"]),
-        ("multiple, required", true, nothing, ["a", "-1"], ["a", "-1"]),
-        ("multiple, required", true, nothing, ["a", "-7"], ["a"]),
-        ("multiple, required", true, nothing, ["a", "-a"], ErrorException),
-        ("multiple, required", true, nothing, ["-1", "a"], ["-1", "a"]),
-        ("multiple, required", true, nothing, ["-7", "a"], ["a"]),
-        ("multiple, required", true, nothing, ["-a", "a"], ErrorException),
+        ("multiple, required", true, missing, String[], ErrorException),
+        ("multiple, required", true, missing, ["a"], ["a"]),
+        ("multiple, required", true, missing, ["a", "b"], ["a", "b"]),
+        ("multiple, required", true, missing, ["a", "-1"], ["a", "-1"]),
+        ("multiple, required", true, missing, ["a", "-7"], ["a"]),
+        ("multiple, required", true, missing, ["a", "-a"], ErrorException),
+        ("multiple, required", true, missing, ["-1", "a"], ["-1", "a"]),
+        ("multiple, required", true, missing, ["-7", "a"], ["a"]),
+        ("multiple, required", true, missing, ["-a", "a"], ErrorException),
 
         # multiple, omittable
         ("multiple, omittable", true, "foo.txt", String[], "foo.txt"),
@@ -218,12 +222,12 @@ using CliOptions
         @test_throws ErrorException parse_args(spec, String[])
         args = parse_args(spec, split("-a foo"))
         @test args.a == "foo"
-        @test args.b === nothing
-        @test args.c === nothing
+        @test args.b === missing
+        @test args.c === missing
         args = parse_args(spec, split("-b bar"))
-        @test args.a === nothing
+        @test args.a === missing
         @test args.b == "bar"
-        @test args.c === nothing
+        @test args.c === missing
         @test_throws ErrorException parse_args(spec, split("-a foo -b bar"))
         @test_throws ErrorException parse_args(spec, split("-a foo -c baz"))
         @test_throws ErrorException parse_args(spec, split("-a foo -b bar -c baz"))

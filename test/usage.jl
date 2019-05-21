@@ -11,7 +11,8 @@ using CliOptions
                 name = "Input data",
             ),
             Option("-t", help = "dtype (float or int)"),
-            program = ""
+            program = "",
+            onerror = error,
         )
         buf = IOBuffer()
         print_usage(buf, spec; verbose = false)

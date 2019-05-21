@@ -11,6 +11,7 @@ using CliOptions
         spec = CliOptionSpec(
             FlagOption("-a"),
             program = program,
+            onerror = error,
         )
         @test spec.program == expected
     end
@@ -21,6 +22,7 @@ using CliOptions
             CounterOption("-b"),
             Option("-c"),
             Positional("d"),
+            onerror = error,
         )
             buf = IOBuffer()
             show(buf, spec)
@@ -39,6 +41,7 @@ using CliOptions
             CounterOption("-b"),
             Option("-c"),
             Positional("d"),
+            onerror = error,
         )
             buf = IOBuffer()
             redirect_stdout(buf) do

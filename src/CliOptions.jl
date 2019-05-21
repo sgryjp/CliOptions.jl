@@ -112,7 +112,7 @@ end
 
 """
     Option([type=String,] primary_name::String, secondary_name::String = "";
-           default = nothing, until = nothing, validator = nothing, help = "")
+           default = missing, until = nothing, validator = nothing, help = "")
 
 Type representing a command line option whose value is a following argument. Two forms of
 option notations are supported:
@@ -137,12 +137,11 @@ notation, specify it as `primary_name` and omit `secondary_name`.
 If `type` parameter is set, option values will be converted to the type inside `parse_args`
 and will be stored in returned `ParseResult`.
 
-`default` parameter controls behavior of `parse_args` when the option is not found in
-command line arguments. If `default` is `nothing`, `parse_args` will throw a
-`CliOptionError`. If `default` is NOT `nothing`, it will be used as the option's value.
-Note that if you want to allow omitting the option but there is no good default value,
-consider using `missing` as default value *(NOTE: this `missing` is not "statistically
-missing"... isn't there better way?)*.
+`default` parameter is used when `parse_args` does not see the option in the given command
+line arguments. If a value other than `missing` was specified, it will be the option's
+value. If it's `missing`, absense of the option is considered as an error; in other word,
+the option becomes a *required* option. The default value of `default` parameter is
+`missing`.
 
 If `until` parameter is specified, following arguments will be collected into a vector to be
 the option's value until an argument which is or one of the `until` parameter appears. In
@@ -182,7 +181,7 @@ struct Option <: AbstractOption
     help::String
 
     function Option(T::Type, primary_name::String, secondary_name::String = "";
-                    default::Any = nothing, until = nothing,
+                    default::Any = missing, until = nothing,
                     validator::Any = nothing, help::String = "")
         names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
         _validate_option_names(Option, names)
@@ -191,7 +190,7 @@ struct Option <: AbstractOption
 end
 
 function Option(primary_name::String, secondary_name::String = "";
-                default::Any = nothing, until = nothing, validator::Any = nothing,
+                default::Any = missing, until = nothing, validator::Any = nothing,
                 help::String = "")
     Option(String, primary_name, secondary_name;
            default = default, until = until, validator = validator, help = help)
@@ -263,7 +262,7 @@ end
 
 function check_usage_count(o::Option, ctx)
     # Throw if it's required but was omitted
-    if o.default === nothing && get(ctx.usage_count, o, 0) ≤ 0
+    if ismissing(o.default) && get(ctx.usage_count, o, 0) ≤ 0
         msg = "Option \"$(o.names[1])\" must be specified"
         throw(CliOptionError(msg))
     end
@@ -271,7 +270,7 @@ end
 
 function to_usage_tokens(o::Option)
     tokens = [o.names[1] * " " * _to_placeholder(o.names)]
-    if o.default !== nothing
+    if !ismissing(o.default)
         tokens[1] = "[" * tokens[1]
         tokens[end] = tokens[end] * "]"
     end
@@ -535,7 +534,7 @@ end
 """
     Positional([type=String,] singular_name, plural_name = "";
                multiple = false, validator = nothing,
-               default = nothing, help = "")
+               default = missing, help = "")
 
 `Positional` represents a command line argument which are not an option name nor an option
 value.
@@ -556,7 +555,7 @@ struct Positional <: AbstractOption
                         plural_name::String = "";
                         multiple::Bool = false,
                         validator::Any = nothing,
-                        default::Any = nothing,
+                        default::Any = missing,
                         help::String = "")
         if singular_name == ""
             throw(ArgumentError("Name of a Positional must not be empty"))
@@ -580,7 +579,7 @@ function Positional(singular_name::String,
                     plural_name::String = "";
                     multiple::Bool = false,
                     validator::Any = nothing,
-                    default::Any = nothing,
+                    default::Any = missing,
                     help::String = "")
     Positional(String, singular_name, plural_name;
                multiple = multiple, validator = validator, default = default, help = help)
@@ -632,7 +631,7 @@ end
 
 function check_usage_count(o::Positional, ctx)
     # Throw if it's required but was omitted
-    if o.default === nothing && get(ctx.usage_count, o, 0) ≤ 0
+    if ismissing(o.default) && get(ctx.usage_count, o, 0) ≤ 0
         msg = "\"$(o.names[1])\" must be specified"
         throw(CliOptionError(msg))
     end

@@ -142,8 +142,8 @@ using CliOptions: consume!
     end
 
     @testset "check_usage_count(); $(v[1])" for v in [
-        ("required, 0", nothing, 0, CliOptionError),
-        ("required, 1", nothing, 1, nothing),
+        ("required, 0", missing, 0, CliOptionError),
+        ("required, 1", missing, 1, nothing),
         ("omittable, 0", "foo", 0, nothing),
     ]
         _, default, count, expected = v
