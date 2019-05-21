@@ -269,9 +269,8 @@ function check_usage_count(o::Option, ctx)
     end
 end
 
-_optval(o::Option) = uppercase(encode(2 ≤ length(o.names) ? o.names[2] : o.names[1]))
 function to_usage_tokens(o::Option)
-    tokens = [o.names[1] * " " * _optval(o)]
+    tokens = [o.names[1] * " " * _to_placeholder(o.names)]
     if o.default !== nothing
         tokens[1] = "[" * tokens[1]
         tokens[end] = tokens[end] * "]"
@@ -279,7 +278,7 @@ function to_usage_tokens(o::Option)
     tokens
 end
 function print_description(io::IO, o::Option)
-    print_description(io, o.names, _optval(o), o.help)
+    print_description(io, o.names, _to_placeholder(o.names), o.help)
 end
 
 
@@ -640,7 +639,7 @@ function check_usage_count(o::Positional, ctx)
 end
 
 function to_usage_tokens(o::Positional)
-    name = uppercase(o.names[1])
+    name = _to_placeholder(o.names[1])
     if o.multiple
         [name * " [" * name * "...]"]
     else
@@ -649,7 +648,7 @@ function to_usage_tokens(o::Positional)
 end
 
 function print_description(io::IO, o::Positional)
-    print_description(io, (uppercase(o.names[1]),), "", o.help)
+    print_description(io, (_to_placeholder(o.names[1]),), "", o.help)
 end
 
 function Base.show(io::IO, x::Positional)
@@ -1146,6 +1145,9 @@ end
 
 # Internals
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
+_to_placeholder(name::String) = uppercase(encode(name))
+_to_placeholder(names::Tuple{String}) = uppercase(encode(names[1]))
+_to_placeholder(names::Tuple{String,String}) = uppercase(encode(2 ≤ length(names) ? names[2] : names[1]))
 
 function foreach_options(f, option::AbstractOption)
     if option isa AbstractOptionGroup

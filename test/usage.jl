@@ -28,14 +28,14 @@ using CliOptions
 
                        Options:
                            -w, --window-function WINDOW_FUNCTION
-                                       window function to use
+                                                  window function to use
 
                          Input data:
-                           -x X        explanatory variables
+                           -x X                   explanatory variables
 
-                           -y Y        objective variable
+                           -y Y                   objective variable
 
-                           -t T        dtype (float or int)
+                           -t T                   dtype (float or int)
 
                        """
     end
