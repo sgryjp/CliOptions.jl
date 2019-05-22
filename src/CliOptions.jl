@@ -641,9 +641,15 @@ end
 function to_usage_tokens(o::Positional)
     name = _to_placeholder(o.names[1])
     if o.multiple
-        [name * " [" * name * "...]"]
-    else
+        if ismissing(o.default)
+            [name * " [$name...]"]
+        else
+            ["[$name...]"]
+        end
+    elseif ismissing(o.default)
         [name]
+    else
+        ["[$name]"]
     end
 end
 

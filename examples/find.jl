@@ -6,7 +6,7 @@ using CliOptions
 
 spec = CliOptionSpec(
     HelpOption(),
-    Option("-x", "--exec"; default = missing, until = ";",
+    Option("-x", "--exec"; default = nothing, until = ";",
            help = "Execute command for each found file."),
     Positional("starting-point"; default = ".",
                help = "Root of directory tree to execute recursive file search."),
@@ -17,7 +17,7 @@ options = parse_args(spec)
 for (rootpath, dirs, files) in walkdir(options.starting_point)
     for fn in files
         path = joinpath(rootpath, fn)
-        if ismissing(options.exec)
+        if options.exec === nothing
             println(path)
         else
             commandline = copy(options.exec)
