@@ -63,17 +63,17 @@ using CliOptions
     end
 
     @testset "consume!(); $(v[1])" for v in [
-        (["-v"], (2, 1)),
-        (["--verbose"], (2, 1)),
-        (["-q"], (2, -1)),
-        (["--quiet"], (2, -1)),
+        (["-v"], (1, 1)),
+        (["--verbose"], (1, 1)),
+        (["-q"], (1, -1)),
+        (["--quiet"], (1, -1)),
     ]
         args, expected = v
         d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = CounterOption("-v", "--verbose"; decrementers = ["-q", "--quiet"])
-        next_index = CliOptions.consume!(d, option, args, 1, ctx)
-        @test next_index == expected[1]
+        num_consumed = CliOptions.consume!(d, option, args, ctx)
+        @test num_consumed == expected[1]
         @test d["verbose"] == expected[2]
     end
 
@@ -84,7 +84,7 @@ using CliOptions
         d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = CounterOption(T, "-v")
-        CliOptions.consume!(d, option, ["-v"], 1, ctx)
+        CliOptions.consume!(d, option, ["-v"], ctx)
         @test typeof(d["v"]) == T
     end
 
@@ -99,12 +99,12 @@ using CliOptions
         ctx = CliOptions.ParseContext()
         option = CounterOption(Int8, "-v"; decrementers = "-q")
         for _ in 1:count-1
-            CliOptions.consume!(d, option, args, 1, ctx)
+            CliOptions.consume!(d, option, args, ctx)
         end
         if expected isa Type
-            @test_throws expected CliOptions.consume!(d, option, args, 1, ctx)
+            @test_throws expected CliOptions.consume!(d, option, args, ctx)
         else
-            CliOptions.consume!(d, option, args, 1, ctx)
+            CliOptions.consume!(d, option, args, ctx)
             @test d["v"] == expected
         end
     end

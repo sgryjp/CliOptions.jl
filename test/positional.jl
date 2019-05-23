@@ -49,21 +49,21 @@ using CliOptions: consume!
 
     @testset "consume!(); $(v[1]), $(v[3])" for v in [
         ("single", false, String[], 0, AssertionError),
-        ("single", false, [""], 2, ""),
-        ("single", false, ["a"], 2, "a"),
+        ("single", false, [""], 1, ""),
+        ("single", false, ["a"], 1, "a"),
         ("multiple", true, String[], 0, AssertionError),
-        ("multiple", true, [""], 2, [""]),
-        ("multiple", true, ["a"], 2, ["a"]),
-        ("multiple", true, ["a", "b"], 3, ["a", "b"]),
+        ("multiple", true, [""], 1, [""]),
+        ("multiple", true, ["a"], 1, ["a"]),
+        ("multiple", true, ["a", "b"], 2, ["a", "b"]),
     ]
         _, multiple, args, expected_rv, expected = v
         d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = Positional("file", "files"; multiple = multiple)
         if expected isa Type
-            @test_throws expected consume!(d, option, args, 1, ctx)
+            @test_throws expected consume!(d, option, args, ctx)
         else
-            next_index = consume!(d, option, args, 1, ctx)
+            next_index = consume!(d, option, args, ctx)
             @test next_index == expected_rv
             @test sorted_keys(d) == ["file", "files"]
             @test d["file"] == expected
@@ -81,42 +81,42 @@ using CliOptions: consume!
         ctx = CliOptions.ParseContext()
         option = Positional(T, "value")
         if expected isa Type
-            @test_throws expected consume!(d, option, args, 1, ctx)
+            @test_throws expected consume!(d, option, args, ctx)
         else
-            consume!(d, option, args, 1, ctx)
+            consume!(d, option, args, ctx)
             @test d["value"] == expected
         end
     end
 
     @testset "consume!(); requirement, $(v[1])" for v in [
         ("[7, 13], 13", ["13"],
-            Int, [7, 13], (2, 13)),
+            Int, [7, 13], (1, 13)),
         ("[7, 13], 7", ["7"],
-            Int, [7, 13], (2, 7)),
+            Int, [7, 13], (1, 7)),
         ("[7, 13], 0", ["0"],
             Int, [7, 13], (CliOptionError, "must be one of")),
         ("(7, 13), 13", ["13"],
-            Int, (7, 13), (2, 13)),
+            Int, (7, 13), (1, 13)),
         ("(7, 13), 7", ["7"],
-            Int, (7, 13), (2, 7)),
+            Int, (7, 13), (1, 7)),
         ("(7, 13), 0", ["0"],
             Int, (7, 13), (CliOptionError, "must be one of")),
         ("/qu+x/, quux", ["quux"],
-            String, Regex("qu+x"), (2, "quux")),
+            String, Regex("qu+x"), (1, "quux")),
         ("/qu+x/, qux", ["qux"],
-            String, Regex("qu+x"), (2, "qux")),
+            String, Regex("qu+x"), (1, "qux")),
         ("/qu+x/, qx", ["qx"],
             String, Regex("qu+x"), (CliOptionError, "must match for")),
         ("String -> Bool, foo", ["foo"],
-            String, s -> startswith(s, "foo"), (2, "foo")),
+            String, s -> startswith(s, "foo"), (1, "foo")),
         ("String -> Bool, 6", ["6"],
-            Int, n -> iseven(n), (2, 6)),
+            Int, n -> iseven(n), (1, 6)),
         ("String -> Bool, 7", ["7"],
             Int, n -> iseven(n), (CliOptionError, "validation failed")),
         ("String -> String, foo", ["foo"],
-            String, s -> startswith(s, "foo") ? "" : "It's not foo", (2, "foo")),
+            String, s -> startswith(s, "foo") ? "" : "It's not foo", (1, "foo")),
         ("String -> String, 6", ["6"],
-            Int, n -> iseven(n) ? "" : "must be even", (2, 6)),
+            Int, n -> iseven(n) ? "" : "must be even", (1, 6)),
         ("String -> String, 7", ["7"],
             Int, n -> iseven(n) ? "" : "must be even", (CliOptionError, "must be even")),
     ]
@@ -126,7 +126,7 @@ using CliOptions: consume!
             ctx = CliOptions.ParseContext()
             if expected[1] isa Type
                 try
-                    CliOptions.consume!(d, option, args, 1, ctx)
+                    CliOptions.consume!(d, option, args, ctx)
                     @test false  # Exception must be thrown
                 catch ex
                     @test ex isa expected[1]
@@ -134,8 +134,8 @@ using CliOptions: consume!
                     @test occursin(expected[2], ex.msg)
                 end
             else
-                next_index = CliOptions.consume!(d, option, args, 1, ctx)
-                @test next_index == expected[1]
+                num_consumed = CliOptions.consume!(d, option, args, ctx)
+                @test num_consumed == expected[1]
                 @test d["name"] == expected[2]
             end
         end

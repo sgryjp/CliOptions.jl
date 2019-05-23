@@ -201,29 +201,29 @@ function set_default!(d::Dict{String,Any}, o::Option)
     end
 end
 
-function consume!(d::Dict{String,Any}, o::Option, args, i, ctx)
-    @assert 1 ≤ i ≤ length(args)
+function consume!(d::Dict{String,Any}, o::Option, args, ctx)
+    @assert 1 ≤ length(args)
     @assert "" ∉ o.names
     @assert all(o isa AbstractOption for o in ctx.all_options)
 
-    if args[i] ∉ o.names
+    if args[1] ∉ o.names
         return 0
     end
     if o.until === nothing
         # Ensure at least one argument is available
-        if length(args) < i + 1
-            throw(CliOptionError("A value is needed for option \"$(args[i])\""))
+        if length(args) < 2
+            throw(CliOptionError("A value is needed for option \"$(args[1])\""))
         end
 
         # Update counter
         ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
 
         # Parse the argument as value
-        value = _parse(o.T, args[i + 1], o.requirement; optname = args[i])
+        value = _parse(o.T, args[2], o.requirement; optname = args[1])
         for name in o.names
             d[encode(name)] = value
         end
-        i + 2
+        return 2
     else
         _match(term, arg) = begin
             if term isa String
@@ -234,7 +234,7 @@ function consume!(d::Dict{String,Any}, o::Option, args, i, ctx)
         end
 
         # Scan for the last argument
-        term_index = i + 1
+        term_index = 2
         while !_match(o.until, args[term_index])
             if length(args) == term_index
                 msg = "\"$(o.names[1])\" needs \"$(o.until)\" as an end-mark"
@@ -248,14 +248,14 @@ function consume!(d::Dict{String,Any}, o::Option, args, i, ctx)
 
         # Parse the arguments as value
         values = o.T[]
-        for j = i+1:term_index-1
-            value = _parse(o.T, args[j], o.requirement; optname = args[i])
+        for j = 2:term_index-1
+            value = _parse(o.T, args[j], o.requirement; optname = args[1])
             push!(values, value)
         end
         for name in o.names
             d[encode(name)] = values
         end
-        i + term_index
+        return term_index
     end
 end
 
@@ -320,24 +320,25 @@ function set_default!(d::Dict{String,Any}, o::FlagOption)
     end
 end
 
-function consume!(d::Dict{String,Any}, o::FlagOption, args, i, ctx)
-    @assert 1 ≤ i ≤ length(args)
+function consume!(d::Dict{String,Any}, o::FlagOption, args, ctx)
+    @assert 1 ≤ length(args)
     @assert "" ∉ o.names
     @assert all(o isa AbstractOption for o in ctx.all_options)
 
-    if startswith(args[i], "--")
-        if args[i] ∈ o.names
+    arg = args[1]
+    if startswith(arg, "--")
+        if arg ∈ o.names
             value = true
-        elseif args[i] ∈ o.negators
+        elseif arg ∈ o.negators
             value = false
         else
             return 0
         end
-    elseif startswith(args[i], "-")
-        @assert length(args[i]) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
-        if args[i] ∈ o.names
+    elseif startswith(arg, "-")
+        @assert length(arg) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
+        if arg ∈ o.names
             value = true
-        elseif args[i] ∈ o.negators
+        elseif arg ∈ o.negators
             value = false
         else
             return 0
@@ -357,7 +358,7 @@ function consume!(d::Dict{String,Any}, o::FlagOption, args, i, ctx)
     for name in o.negators
         d[encode(name)] = !value
     end
-    i + 1
+    return 1
 end
 
 check_usage_count(o::FlagOption, ctx) = nothing
@@ -430,23 +431,24 @@ function set_default!(d::Dict{String,Any}, o::CounterOption)
     end
 end
 
-function consume!(d::Dict{String,Any}, o::CounterOption, args, i, ctx)
-    @assert 1 ≤ i ≤ length(args)
+function consume!(d::Dict{String,Any}, o::CounterOption, args, ctx)
+    @assert 1 ≤ length(args)
     @assert "" ∉ o.names
     @assert all(o isa AbstractOption for o in ctx.all_options)
 
+    arg = args[1]
     diff = 0
-    if startswith(args[i], "--")
-        if args[i] ∈ o.names
+    if startswith(arg, "--")
+        if arg ∈ o.names
             diff = +1
-        elseif args[i] ∈ o.decrementers
+        elseif arg ∈ o.decrementers
             diff = -1
         end
-    elseif startswith(args[i], "-")
-        @assert length(args[i]) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
-        if args[i] ∈ o.names
+    elseif startswith(arg, "-")
+        @assert length(arg) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
+        if arg ∈ o.names
             diff = +1
-        elseif args[i] ∈ o.decrementers
+        elseif arg ∈ o.decrementers
             diff = -1
         end
     end
@@ -455,7 +457,7 @@ function consume!(d::Dict{String,Any}, o::CounterOption, args, i, ctx)
     end
     value = get(d, encode(o.names[1]), 0) + diff
     if !(typemin(o.T) ≤ value ≤ typemax(o.T))
-        throw(CliOptionError("Too many \"$(args[i])\""))
+        throw(CliOptionError("Too many \"$(arg)\""))
     end
 
     # Update counter
@@ -465,7 +467,7 @@ function consume!(d::Dict{String,Any}, o::CounterOption, args, i, ctx)
     for name in o.names
         d[encode(name)] = o.T(value)
     end
-    i + 1
+    return 1
 end
 
 check_usage_count(o::CounterOption, ctx) = nothing
@@ -515,8 +517,8 @@ function set_default!(d::Dict{String,Any}, o::HelpOption)
     set_default!(d, o.flag)
 end
 
-function consume!(d::Dict{String,Any}, o::HelpOption, args, i, ctx)
-    consume!(d, o.flag, args, i, ctx)
+function consume!(d::Dict{String,Any}, o::HelpOption, args, ctx)
+    consume!(d, o.flag, args, ctx)
 end
 
 check_usage_count(o::HelpOption, ctx) = nothing
@@ -592,8 +594,8 @@ function set_default!(d::Dict{String,Any}, o::Positional)
     end
 end
 
-function consume!(d::Dict{String,Any}, o::Positional, args, i, ctx)
-    @assert 1 ≤ i ≤ length(args)
+function consume!(d::Dict{String,Any}, o::Positional, args, ctx)
+    @assert 1 ≤ length(args)
     @assert "" ∉ o.names
     @assert all(o isa AbstractOption for o in ctx.all_options)
 
@@ -607,7 +609,7 @@ function consume!(d::Dict{String,Any}, o::Positional, args, i, ctx)
 
     # Scan values to consume
     values = Vector{o.T}()
-    for arg in args[i:(o.multiple ? length(args) : i)]
+    for arg in args[1:(o.multiple ? length(args) : 1)]
         token_type = _check_option_name(arg)
         if token_type == :valid
             break  # Do not consume an argument which looks like an option
@@ -627,7 +629,7 @@ function consume!(d::Dict{String,Any}, o::Positional, args, i, ctx)
         d[encode(name)] = o.multiple ? values : values[1]
     end
 
-    return i + length(values)
+    return length(values)
 end
 
 function check_usage_count(o::Positional, ctx)
@@ -725,19 +727,19 @@ function set_default!(d::Dict{String,Any}, o::RemainderOption)
     end
 end
 
-function consume!(d::Dict{String,Any}, o::RemainderOption, args, i, ctx)
-    @assert 1 ≤ i ≤ length(args)
+function consume!(d::Dict{String,Any}, o::RemainderOption, args, ctx)
+    @assert 1 ≤ length(args)
     @assert "" ∉ o.names
     @assert all(o isa AbstractOption for o in ctx.all_options)
 
     # Skip if name does not match
-    if args[i] ∉ o.names
+    if args[1] ∉ o.names
         return 0
     end
 
     # Parse arguments
     values = AbstractString[]
-    for arg in args[i + 1:end]
+    for arg in args[2:end]
         push!(values, arg)
     end
     for name in o.names
@@ -789,11 +791,11 @@ function set_default!(d::Dict{String,Any}, o::OptionGroup)
     end
 end
 
-function consume!(d::Dict{String,Any}, o::OptionGroup, args, i, ctx)
+function consume!(d::Dict{String,Any}, o::OptionGroup, args, ctx)
     for option in o.options
-        next_index = consume!(d, option, args, i, ctx)
-        if 0 < next_index
-            return next_index
+        num_consumed = consume!(d, option, args, ctx)
+        if 0 < num_consumed
+            return num_consumed
         end
     end
     return 0
@@ -842,11 +844,11 @@ function set_default!(d::Dict{String,Any}, o::MutexGroup)  # Same as from Option
     end
 end
 
-function consume!(d::Dict{String,Any}, o::MutexGroup, args, i, ctx)  # Same as from OptionGroup
+function consume!(d::Dict{String,Any}, o::MutexGroup, args, ctx)  # Same as from OptionGroup
     for option in o.options
-        next_index = consume!(d, option, args, i, ctx)
-        if 0 < next_index
-            return next_index
+        num_consumed = consume!(d, option, args, ctx)
+        if 0 < num_consumed
+            return num_consumed
         end
     end
     return 0
@@ -1120,11 +1122,11 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     i = 1
     while i ≤ length(args)
         try
-            next_index = consume!(result._dict, spec.root, args, i, ctx)
-            if next_index ≤ 0
+            num_consumed = consume!(result._dict, spec.root, args[i:end], ctx)
+            if num_consumed ≤ 0
                 throw(CliOptionError("Unrecognized argument: \"$(args[i])\""))
             end
-            i = next_index
+            i += num_consumed
         catch ex
             buf = IOBuffer()
             showerror(buf, ex)
@@ -1153,7 +1155,9 @@ end
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
 _to_placeholder(name::String) = uppercase(encode(name))
 _to_placeholder(names::Tuple{String}) = uppercase(encode(names[1]))
-_to_placeholder(names::Tuple{String,String}) = uppercase(encode(2 ≤ length(names) ? names[2] : names[1]))
+_to_placeholder(names::Tuple{String,String}) = begin
+    uppercase(encode(2 ≤ length(names) ? names[2] : names[1]))
+end
 
 function foreach_options(f, option::AbstractOption)
     if option isa AbstractOptionGroup

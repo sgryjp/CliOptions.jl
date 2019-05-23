@@ -51,7 +51,7 @@ using CliOptions
         let d = Dict{String,Any}()
             ctx = CliOptions.ParseContext()
             option = RemainderOption()
-            @test_throws AssertionError CliOptions.consume!(d, option, [], 1, ctx)
+            @test_throws AssertionError CliOptions.consume!(d, option, [], ctx)
         end
     end
 
@@ -64,7 +64,7 @@ using CliOptions
         dict = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = RemainderOption(names...)
-        next_index = CliOptions.consume!(dict, option, args, 1, ctx)
+        next_index = CliOptions.consume!(dict, option, args, ctx)
         @test next_index == expected_next_index
         @test dict[key] == expected_values
     end

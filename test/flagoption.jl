@@ -49,17 +49,17 @@ using CliOptions
     end
 
     @testset "consume!(); $(v[1])" for v in [
-        (["-i"], (2, true)),
-        (["--ignore-case"], (2, true)),
-        (["-I"], (2, false)),
-        (["--case-sensitive"], (2, false)),
+        (["-i"], (1, true)),
+        (["--ignore-case"], (1, true)),
+        (["-I"], (1, false)),
+        (["--case-sensitive"], (1, false)),
     ]
         args, expected = v
         d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         option = FlagOption("-i", "--ignore-case"; negators = ["-I", "--case-sensitive"])
-        next_index = CliOptions.consume!(d, option, args, 1, ctx)
-        @test next_index == expected[1]
+        num_consumed = CliOptions.consume!(d, option, args, ctx)
+        @test num_consumed == expected[1]
         @test d["ignore_case"] == expected[2]
         @test d["case_sensitive"] == !expected[2]
     end

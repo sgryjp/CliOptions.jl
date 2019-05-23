@@ -51,10 +51,10 @@ using CliOptions
         d = Dict{String,Any}()
         ctx = CliOptions.ParseContext()
         if expected isa Type
-            @test_throws expected CliOptions.consume!(d, option, args, 1, ctx)
+            @test_throws expected CliOptions.consume!(d, option, args, ctx)
         else
-            next_index = CliOptions.consume!(d, option, args, 1, ctx)
-            @test next_index == 1 + length(args)
+            num_consumed = CliOptions.consume!(d, option, args, ctx)
+            @test num_consumed == 1
             @test d["help"] == expected
         end
     end
