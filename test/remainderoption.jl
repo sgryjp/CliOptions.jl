@@ -6,7 +6,7 @@ using CliOptions
 @testset "RemainderOption()" begin
     @testset "ctor; $(repr(v[1]))" for v in [
         ("", "must not be empty"),
-        ("a", "must start with a hyphen"),
+        ("a", "must start with a dash"),
         ("-", "Invalid name"),
     ]
         names, msg = v

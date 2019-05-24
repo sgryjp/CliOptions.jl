@@ -16,8 +16,8 @@ using CliOptions: encode
         # reason
         ("nameless", Option, String[], true, "At least one name"),
         ("empty", Option, [""], true, "must not be empty"),
-        ("starting with non-hyphen", Option, ["a"], true, "must start with a hyphen"),
-        ("double hyphen only", Option, ["--"], true, "Invalid name"),
+        ("starting with non-dash", Option, ["a"], true, "must start with a dash"),
+        ("double dash only", Option, ["--"], true, "Invalid name"),
     ]
         _, T, names, should_fail, substr = v
         ok = false

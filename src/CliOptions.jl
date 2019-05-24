@@ -118,10 +118,10 @@ Type representing a command line option whose value is a following argument. Two
 option notations are supported:
 
 1. Short form (e.g.: `-n 42`)
-   - Starting with a hyphen, one character follows it
+   - Starting with a dash, one character follows it
    - A following command line argument will be the option's value
 2. Long form (e.g.: `--foo-bar`)
-   - Starting with two hyphens, hyphen-separated words follow them
+   - Starting with two dash, dash-separated words follow them
    - Value can be specified as one of the two forms below:
      1. `--foo-bar value`; a following command line argument becomes the option's value
      2. `--foo-bar=value`; characters after an equal sign following the option name becomes
@@ -561,10 +561,10 @@ struct Positional <: AbstractOption
         if singular_name == ""
             throw(ArgumentError("Name of a Positional must not be empty"))
         elseif startswith(singular_name, '-')
-            throw(ArgumentError("Name of a Positional must not start with a hyphen: " *
+            throw(ArgumentError("Name of a Positional must not start with a dash: " *
                                 singular_name))
         elseif startswith(plural_name, '-')
-            throw(ArgumentError("Name of a Positional must not start with a hyphen: " *
+            throw(ArgumentError("Name of a Positional must not start with a dash: " *
                                 plural_name))
         end
 
@@ -1211,9 +1211,9 @@ function _check_option_name(name)
     if "" == name
         return :empty  # An empty string
     elseif name[1] != '-'
-        return :not_hyphen  # Not starting with a hyphen
+        return :not_dash  # Not starting with a dash
     elseif name == "--"
-        return :two_hyphens  # It's double hyphens
+        return :two_dashs  # It's double dashs
     elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
         return :invalid  # At least invalid as a name of an option
     end
@@ -1233,11 +1233,11 @@ function _validate_option_names(T, names; allow_nameless = false)
         result = _check_option_name(name)
         if result == :empty
             throw(ArgumentError("Name of $(article(T)) $T must not be empty"))
-        elseif result == :not_hyphen
-            throw(ArgumentError("Name of $(article(T)) $T must start with a hyphen:" *
+        elseif result == :not_dash
+            throw(ArgumentError("Name of $(article(T)) $T must start with a dash:" *
                                 " \"$name\""))
-        elseif result in (:two_hyphens, :invalid)
-            if T == RemainderOption && result == :two_hyphens
+        elseif result in (:two_dashs, :invalid)
+            if T == RemainderOption && result == :two_dashs
                 return
             end
             throw(ArgumentError("Invalid name for $T: \"$name\""))
