@@ -1070,17 +1070,6 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParseResult()
     ctx = ParseContext()
 
-    handle_error(spec, msg) = begin
-        if spec.onerror isa Integer
-            printstyled(stderr, "ERROR: "; color = Base.error_color())
-            println(stderr, msg)
-            print_usage(stderr, spec)
-            _exit(spec.onerror)
-        elseif spec.onerror !== nothing
-            spec.onerror(msg)
-        end
-    end
-
     # Store all options in a vector and pick special options
     help_option = nothing
     remainders_option = nothing
@@ -1132,7 +1121,6 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
             showerror(buf, ex)
             msg = String(take!(buf))
             push!(result._errors, msg)
-            handle_error(spec, msg)
             i += 1
         end
     end
@@ -1144,7 +1132,18 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
         catch ex
             ex::CliOptionError
             push!(result._errors, ex.msg)
-            handle_error(spec, ex.msg)
+        end
+    end
+
+    # Finally handle detected errors
+    for msg in result._errors
+        if spec.onerror isa Integer
+            printstyled(stderr, "ERROR: "; color = Base.error_color())
+            println(stderr, msg)
+            print_usage(stderr, spec)
+            _exit(spec.onerror)
+        elseif spec.onerror !== nothing
+            spec.onerror(msg)
         end
     end
 
