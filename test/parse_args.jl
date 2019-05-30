@@ -261,4 +261,23 @@ using CliOptions
             end
         end
     end
+
+    @testset "ParseResult._errors, $(v[1])" for v in [
+        ("1", split("-n 1 -x"), [
+            "Unrecognized argument: \"-x\"",
+        ]),
+        ("2", split("-n a -x"), [
+            "Invalid value for -n: \"a\" (must be one of \"1\", \"2\" or \"3\")",
+            "Unrecognized argument: \"a\"",
+            "Unrecognized argument: \"-x\"",
+        ]),
+    ]
+        t, args, expected = v
+        spec = CliOptionSpec(
+            Option("-n"; requirement = ["1", "2", "3"]),
+            onerror = nothing,
+        )
+        result = parse_args(spec, args)
+        @test result._errors == expected
+    end
 end
