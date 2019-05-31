@@ -16,7 +16,7 @@ using CliOptions
             @test_throws expected HelpOption(names...)
         else
             option = HelpOption(names...)
-            @test option.flag.names == expected
+            @test option.names == expected
         end
     end
 

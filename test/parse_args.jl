@@ -97,6 +97,24 @@ using CliOptions
         end
     end
 
+    @testset "HelpOption; $(v[1])" for v in [
+        ("-h", (true, 1)),
+        ("-a -h", (false, 0)),
+        ("-a -b -h", (true, 1)),
+    ]
+        args, expected = v
+        counter = 0
+        spec = CliOptionSpec(
+            Option("-a"; default = "foo"),
+            HelpOption(),
+            onhelp = () -> counter += 1,
+            onerror = error,
+        )
+        result = parse_args(spec, split(args))
+        @test result.help == expected[1]
+        @test counter == expected[2]
+    end
+
     @testset "HelpOption; onhelp = $(v[1])" for v in [
         ("Integer", 42, (c) -> error("foobar$c"), (ErrorException, "foobar42")),
         ("Nothing", nothing, Base.exit, (true, nothing)),

@@ -281,6 +281,72 @@ end
 
 
 """
+    HelpOption(names = ("-h", "--help"); [help::String])
+
+Options for printing help (usage) message.
+
+The default value of `names` are `-h` and `--help`. If you do not like to have `-h` for
+printing help message, just give `--help` for `names` parameter (i.e.:
+`HelpOption("--help"; ...)`).
+
+The default behavior for a help option is printing help message and exiting. If you do not
+like this behavior, use `onhelp` parameter on constructing [`CliOptionSpec`](@ref).
+"""
+struct HelpOption <: AbstractOption
+    names
+    help::String
+
+    function HelpOption(names::String...; help::String = "Show usage message and exit")
+        if length(names) == 0
+            names = ("-h", "--help")
+        end
+        _validate_option_names(HelpOption, names)
+        new(names, help)
+    end
+end
+
+function set_default!(d::Dict{String,Any}, o::HelpOption)
+    for name in o.names
+        d[encode(name)] = false
+    end
+end
+
+function consume!(d::Dict{String,Any}, o::HelpOption, args, ctx)
+    @assert 1 ≤ length(args)
+    @assert "" ∉ o.names
+    @assert all(o isa AbstractOption for o in ctx.all_options)
+
+    arg = args[1]
+    if startswith(arg, "--")
+        if arg in o.names
+            value = true
+        else
+            return 0
+        end
+    elseif startswith(arg, "-")
+        @assert length(arg) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
+        if arg in o.names
+            value = true
+        else
+            return 0
+        end
+    else
+        return 0
+    end
+
+    # Update counter
+    count::Int = get!(ctx.usage_count, o, 0)
+    ctx.usage_count[o] = count + 1
+
+    # Construct parsed values
+    for name in o.names
+        d[encode(name)] = value
+    end
+    return 1
+end
+
+
+"""
     FlagOption(primary_name::String, secondary_name::String = "";
                negators::Union{String,Vector{String}} = String[],
                help = "",
@@ -361,13 +427,13 @@ function consume!(d::Dict{String,Any}, o::FlagOption, args, ctx)
     return 1
 end
 
-check_usage_count(o::FlagOption, ctx) = nothing
+check_usage_count(o::Union{FlagOption,HelpOption}, ctx) = nothing
 
-function to_usage_tokens(o::FlagOption)
+function to_usage_tokens(o::Union{FlagOption,HelpOption})
     latter_part = 1 ≤ length(o.negators) ? " | " * o.negators[1] : ""
     ["[" * o.names[1] * latter_part * "]"]
 end
-function print_description(io::IO, o::FlagOption)
+function print_description(io::IO, o::Union{FlagOption,HelpOption})
     print_description(io, o.names, "", o.help)
     if 1 ≤ length(o.negators)
         print_description(io, o.negators, "", o.negator_help)
@@ -482,53 +548,6 @@ function print_description(io::IO, o::CounterOption)
     if 1 ≤ length(o.decrementers)
         print_description(io, o.decrementers, "", o.decrementer_help)
     end
-end
-
-
-"""
-    HelpOption(names = ("-h", "--help"); [help::String])
-
-Options for printing help (usage) message.
-
-The default value of `names` are `-h` and `--help`. If you do not like to have `-h` for
-printing help message, just give `--help` for `names` parameter (i.e.:
-`HelpOption("--help"; ...)`).
-
-The default behavior for a help option is printing help message and exiting. If you do not
-like this behavior, use `onhelp` parameter on constructing [`CliOptionSpec`](@ref).
-"""
-struct HelpOption <: AbstractOption
-    names
-    flag::FlagOption
-    help::String
-
-    function HelpOption(names::String...; help::String = "")
-        help = help == "" ? "Show usage message and exit" : help
-        if length(names) == 0
-            names = ("-h", "--help")
-        end
-        _validate_option_names(HelpOption, names)  # for error message
-        flag = FlagOption(names...; help = help)
-        new(flag.names, flag, help)
-    end
-end
-
-function set_default!(d::Dict{String,Any}, o::HelpOption)
-    set_default!(d, o.flag)
-end
-
-function consume!(d::Dict{String,Any}, o::HelpOption, args, ctx)
-    consume!(d, o.flag, args, ctx)
-end
-
-check_usage_count(o::HelpOption, ctx) = nothing
-
-function to_usage_tokens(o::HelpOption)
-    ["[" * o.names[1] * "]"]
-end
-
-function print_description(io::IO, o::HelpOption)
-    print_description(io, o.names, "", o.help)
 end
 
 
@@ -1085,23 +1104,6 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     # Normalize argument list
     args = _normalize_args(args)
 
-    # Scan arguments for special options
-    if help_option !== nothing
-        for i = 1:length(args)
-            if args[i] in help_option.names
-                # Found a help option
-                if spec.onhelp isa Integer
-                    print_usage(stdout, spec)
-                    _exit(spec.onhelp)
-                elseif spec.onhelp !== nothing
-                    spec.onhelp()
-                end
-            elseif remainders_option !== nothing && args[i] in remainders_option.names
-                break
-            end
-        end
-    end
-
     # Setup default values
     for option in spec.root
         set_default!(result._dict, option)
@@ -1135,7 +1137,15 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
         end
     end
 
-    # Finally handle detected errors
+    # Finally, handle help option and errors
+    if 1 ≤ get(ctx.usage_count, help_option, 0)
+        if spec.onhelp isa Integer
+            print_usage(stdout, spec)
+            _exit(spec.onhelp)
+        elseif spec.onhelp !== nothing
+            spec.onhelp()
+        end
+    end
     for msg in result._errors
         if spec.onerror isa Integer
             printstyled(stderr, "ERROR: "; color = Base.error_color())
