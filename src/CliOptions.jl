@@ -345,6 +345,14 @@ function consume!(d::Dict{String,Any}, o::HelpOption, args, ctx)
     return 1
 end
 
+function to_usage_tokens(o::HelpOption)
+    ["[" * o.names[1] "]"]
+end
+
+function print_description(io::IO, o::HelpOption)
+    print_description(io, o.names, "", o.help)
+end
+
 
 """
     FlagOption(primary_name::String, secondary_name::String = "";
@@ -429,11 +437,11 @@ end
 
 check_usage_count(o::Union{FlagOption,HelpOption}, ctx) = nothing
 
-function to_usage_tokens(o::Union{FlagOption,HelpOption})
+function to_usage_tokens(o::FlagOption)
     latter_part = 1 ≤ length(o.negators) ? " | " * o.negators[1] : ""
     ["[" * o.names[1] * latter_part * "]"]
 end
-function print_description(io::IO, o::Union{FlagOption,HelpOption})
+function print_description(io::IO, o::FlagOption)
     print_description(io, o.names, "", o.help)
     if 1 ≤ length(o.negators)
         print_description(io, o.negators, "", o.negator_help)
