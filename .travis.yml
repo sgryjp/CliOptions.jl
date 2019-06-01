@@ -1,5 +1,19 @@
 language: julia
+
 julia:
   - 0.7
   - 1.1
   - nightly
+
+jobs:
+  include:
+    - stage: "Documentation"
+      julia: 1.0
+      os: linux
+      script:
+        - julia --project=docs/ -e 'using Pkg;
+                                    Pkg.add("Documenter");
+                                    Pkg.develop(PackageSpec(path=pwd()));
+                                    Pkg.instantiate()'
+        - julia --project=docs/ docs/make.jl --deploy
+      after_success: skip
