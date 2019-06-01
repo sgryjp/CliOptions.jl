@@ -380,7 +380,7 @@ struct FlagOption <: AbstractOption
         if negator_help == ""
             negator_help = "Negate usage of " * names[1] * " option"
         end
-        new(Tuple(names), [n for n ∈ negators], help, negator_help)
+        new(Tuple(names), [n for n in negators], help, negator_help)
     end
 end
 
@@ -400,18 +400,18 @@ function consume!(d::Dict{String,Any}, o::FlagOption, args, ctx)
 
     arg = args[1]
     if startswith(arg, "--")
-        if arg ∈ o.names
+        if arg in o.names
             value = true
-        elseif arg ∈ o.negators
+        elseif arg in o.negators
             value = false
         else
             return 0
         end
     elseif startswith(arg, "-")
         @assert length(arg) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
-        if arg ∈ o.names
+        if arg in o.names
             value = true
-        elseif arg ∈ o.negators
+        elseif arg in o.negators
             value = false
         else
             return 0
@@ -484,7 +484,7 @@ struct CounterOption <: AbstractOption
         if decrementer_help == ""
             decrementer_help = "Opposite of " * names[1] * " option"
         end
-        new(Tuple(names), [n for n ∈ decrementers], T(default), T, help, decrementer_help)
+        new(Tuple(names), [n for n in decrementers], T(default), T, help, decrementer_help)
     end
 end
 
@@ -512,16 +512,16 @@ function consume!(d::Dict{String,Any}, o::CounterOption, args, ctx)
     arg = args[1]
     diff = 0
     if startswith(arg, "--")
-        if arg ∈ o.names
+        if arg in o.names
             diff = +1
-        elseif arg ∈ o.decrementers
+        elseif arg in o.decrementers
             diff = -1
         end
     elseif startswith(arg, "-")
         @assert length(arg) == 2  # Splitting -abc to -a, -b, -c is done by parse_args()
-        if arg ∈ o.names
+        if arg in o.names
             diff = +1
-        elseif arg ∈ o.decrementers
+        elseif arg in o.decrementers
             diff = -1
         end
     end
