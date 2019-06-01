@@ -2,6 +2,9 @@ using Dates
 using Test
 using CliOptions
 
+include("testutils.jl")
+
+
 @testset "Option()" begin
     @testset "ctor" begin
         @test_throws MethodError Option()

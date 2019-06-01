@@ -1,6 +1,9 @@
 using Test
 using CliOptions
 
+include("testutils.jl")
+
+
 @testset "parse_args()" begin
     @testset "type of args; $(typeof(v))" for v in [
         ["-abc", "foo", "bar"],

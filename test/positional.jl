@@ -3,6 +3,9 @@ using Test
 using CliOptions
 using CliOptions: consume!
 
+include("testutils.jl")
+
+
 @testset "Positional()" begin
     @testset "ctor; $(v[1]); $(v[4])" for v in [
         ("single, required", false, nothing, [""], ArgumentError),

@@ -1,6 +1,9 @@
 using Test
 using CliOptions
 
+include("testutils.jl")
+
+
 @testset "ParseResult" begin
     let result = CliOptions.ParseResult()
         result._dict["foo"] = "FOO"

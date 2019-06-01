@@ -1,6 +1,9 @@
 using Test
 using CliOptions
 
+include("testutils.jl")
+
+
 @testset "Internal utilities" begin
 
     @testset "_validate_option_names(); $(v[1])" for v in [

@@ -1,6 +1,9 @@
 using Test
 using CliOptions
 
+include("testutils.jl")
+
+
 @testset "CounterOption()" begin
     @testset "ctor" begin
         @testset "names" begin

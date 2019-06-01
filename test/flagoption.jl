@@ -1,6 +1,9 @@
 using Test
 using CliOptions
 
+include("testutils.jl")
+
+
 @testset "FlagOption()" begin
     @testset "ctor" begin
         @test_throws MethodError FlagOption()

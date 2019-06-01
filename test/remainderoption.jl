@@ -2,6 +2,8 @@ using Dates
 using Test
 using CliOptions
 
+include("testutils.jl")
+
 
 @testset "RemainderOption()" begin
     @testset "ctor; $(repr(v[1]))" for v in [

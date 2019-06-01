@@ -1,6 +1,9 @@
 using Test
 using CliOptions
 
+include("testutils.jl")
+
+
 @testset "AbstractOptionGroup()" begin
     @testset "show(::OptionGroup); $(join(v[1],','))" for v in [
         (["-a"], "OptionGroup(Option(:a))"),

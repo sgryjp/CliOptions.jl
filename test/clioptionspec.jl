@@ -1,6 +1,8 @@
 using Test
 using CliOptions
 
+include("testutils.jl")
+
 
 @testset "CliOptionSpec" begin
     @testset "ctor(); program = $(repr(v[1]))" for v in [

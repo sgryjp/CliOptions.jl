@@ -1,6 +1,9 @@
 using Test
 using CliOptions
 
+include("testutils.jl")
+
+
 @testset "print_usage()" begin
     @testset "example 1" begin
         spec = CliOptionSpec(

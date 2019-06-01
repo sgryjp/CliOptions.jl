@@ -1,6 +1,9 @@
 using Test
 using CliOptions
 
+include("testutils.jl")
+
+
 @testset "HelpOption()" begin
     @testset "ctor; $(v[1])" for v in [
         ([""], ArgumentError),
