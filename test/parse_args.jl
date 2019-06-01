@@ -283,6 +283,25 @@ include("testutils.jl")
         end
     end
 
+    @testset "use_double_dash; $(v[1]), $(v[2])" for v in [
+        (false, "-a foo -- --", ["foo", "--", "--"]),
+        (false, "-a -- foo --", ["--", "foo", "--"]),
+        (false, "-- -a foo --", ["foo", "--"]),  # stops at `-a`, overwrites ["--"] with ["foo"]
+        (true, "-a foo -- --", ["foo", "--"]),
+        (true, "-a -- foo --", ["foo", "--"]),
+        (true, "-- -a foo --", ["-a", "foo", "--"]),
+    ]
+        use_double_dash, args, expected = v
+        spec = CliOptionSpec(
+            FlagOption("-a"),
+            Positional("file", "files"; multiple = true),
+            use_double_dash = use_double_dash,
+            onerror = error,
+        )
+        result = parse_args(spec, split(args))
+        @test result.files == expected
+    end
+
     @testset "ParseResult._errors, $(v[1])" for v in [
         ("1", split("-n 1 -x"), [
             "Unrecognized argument: \"-x\"",

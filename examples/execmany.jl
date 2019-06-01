@@ -5,11 +5,13 @@ using CliOptions
 spec = CliOptionSpec(
     Option(Int, "-n", "--times"; default = 1,
            help = "Number of times to execute the command"),
-    RemainderOption(help = "Command line arguments to execute"),
+    Positional("arguments"; multiple = true,
+               help = "Command line arguments to execute"),
     HelpOption(),
+    use_double_dash = true,
 )
-args = parse_args(spec)
-for _ in 1:args.times
-    cmd = Cmd(String[a for a in args._remainders])
+options = parse_args(spec)
+for _ in 1:options.times
+    cmd = Cmd(String[a for a in options.arguments])
     run(cmd)
 end

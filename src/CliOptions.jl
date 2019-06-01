@@ -638,16 +638,25 @@ function consume!(d::Dict{String,Any}, o::Positional, args, ctx)
 
     # Scan values to consume
     values = Vector{o.T}()
+    nconsumed = 0
     for arg in args[1:(o.multiple ? length(args) : 1)]
         token_type = _check_option_name(arg)
-        if token_type == :valid
+        if token_type == :double_dash
+            # Raise flag if it's first double-dash otherwise consume it
+            if ctx.double_dash_found == false
+                ctx.double_dash_found = true
+                nconsumed += 1
+                continue
+            end
+        elseif ctx.double_dash_found != true && token_type == :valid
             break  # Do not consume an argument which looks like an option
-        elseif token_type == :negative
+        elseif ctx.double_dash_found != true && token_type == :negative
             if any(name == arg for opt in ctx.all_options for name in opt.names)
                 break  # Do not consume an option which looks like a negative number
             end
         end
         push!(values, _parse(o.T, arg, o.requirement))
+        nconsumed += 1
     end
     if length(values) == 0
         return 0  # No arguments consumable
@@ -658,7 +667,7 @@ function consume!(d::Dict{String,Any}, o::Positional, args, ctx)
         d[encode(name)] = o.multiple ? values : values[1]
     end
 
-    return length(values)
+    return nconsumed
 end
 
 function check_usage_count(o::Positional, ctx)
@@ -927,6 +936,7 @@ end
 """
     CliOptionSpec(options::AbstractOption...;
                   program = PROGRAM_FILE,
+                  use_double_dash = true,
                   onhelp = 0,
                   onerror = 1)
 
@@ -934,6 +944,11 @@ A type representing a command line option specification.
 
 `program` parameter is used for the program name which appears in help (usage) message. If
 omitted, `Base.PROGRAM_FILE` will be used.
+
+If `use_double_dash` parameters is `true`, no argument after `--` will be recognized as an
+option. In this case, `--` itself will not parsed as an option nor positional arguments.
+This especially is useful for programs which launches another program using command line
+arguments given to itself.
 
 `onhelp` parameter controls what to do if a [`HelpOption`](@ref) was used. It can be either:
 
@@ -1007,17 +1022,19 @@ nothing
 struct CliOptionSpec
     root::OptionGroup
     program::String
+    use_double_dash::Bool
     onhelp::Any
     onerror::Any
 
     function CliOptionSpec(options::AbstractOption...;
                            program = PROGRAM_FILE,
+                           use_double_dash = true,
                            onhelp = 0,
                            onerror = 0)
         if program == ""
             program = "PROGRAM"  # may be called inside REPL
         end
-        new(OptionGroup(options...), program, onhelp, onerror)
+        new(OptionGroup(options...), program, use_double_dash, onhelp, onerror)
     end
 end
 
@@ -1048,11 +1065,14 @@ function print_usage(spec::CliOptionSpec; verbose = true)
 end
 
 
-struct ParseContext
+mutable struct ParseContext
     usage_count
     all_options
+    double_dash_found::Union{Nothing,Bool}
 
-    ParseContext() = new(Dict{AbstractOption,Int}(), Vector{AbstractOption}())
+    ParseContext(use_double_dash = false) = new(Dict{AbstractOption,Int}(),
+                                                Vector{AbstractOption}(),
+                                                use_double_dash ? false : nothing)
 end
 
 """
@@ -1097,7 +1117,7 @@ patterns: ["*.log"]
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
     result = ParseResult()
-    ctx = ParseContext()
+    ctx = ParseContext(spec.use_double_dash)
 
     # Store all options in a vector and pick special options
     help_option = nothing
@@ -1243,9 +1263,9 @@ function _check_option_name(name)
     if "" == name
         return :empty  # An empty string
     elseif name[1] != '-'
-        return :not_dash  # Not starting with a dash
+        return :no_dash  # Not starting with a dash
     elseif name == "--"
-        return :two_dashs  # It's double dashs
+        return :double_dash  # It's double dash
     elseif match(r"^-[^-]", name) === nothing && match(r"^--[^-]", name) === nothing
         return :invalid  # At least invalid as a name of an option
     end
@@ -1271,11 +1291,11 @@ function _validate_option_names(T, name_lists...)
         result = _check_option_name(name)
         if result == :empty
             throw(ArgumentError("Name of $(article(T)) $T must not be empty"))
-        elseif result == :not_dash
+        elseif result == :no_dash
             throw(ArgumentError("Name of $(article(T)) $T must start with a dash:" *
                                 " \"$name\""))
-        elseif result in (:two_dashs, :invalid)
-            if T == RemainderOption && result == :two_dashs
+        elseif result in (:double_dash, :invalid)
+            if T == RemainderOption && result == :double_dash
                 return
             end
             throw(ArgumentError("Invalid name for $T: \"$name\""))

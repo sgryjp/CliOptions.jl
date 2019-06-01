@@ -9,6 +9,7 @@ spec = CliOptionSpec(
                help = "The command to execute for each items."),
     Positional("arguments"; default = String[], multiple = true,
                help = "The arguments to be passed to the commands."),
+    use_double_dash = true,
 )
 options = parse_args(spec)
 
