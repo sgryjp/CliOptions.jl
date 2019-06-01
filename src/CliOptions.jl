@@ -838,10 +838,12 @@ A type representing a command line option specification.
 `program` parameter is used for the program name which appears in help (usage) message. If
 omitted, `Base.PROGRAM_FILE` will be used.
 
-If `use_double_dash` parameters is `true`, no argument after `--` will be recognized as an
-option. In this case, `--` itself will not parsed as an option nor positional arguments.
-This especially is useful for programs which launches another program using command line
-arguments given to itself.
+If `use_double_dash` parameters is `true`, no argument after double dash (`--`) will be
+recognized as an option. In this case, the double dash itself will not parsed as an option
+nor a positional argument. Note that only the first double dash is treated specially so
+double dashes which appeares after it will be recognized as positional arguments. This is
+especially useful for programs which launches another program using command line arguments
+given to itself.
 
 `onhelp` parameter controls what to do if a [`HelpOption`](@ref) was used. It can be either:
 
