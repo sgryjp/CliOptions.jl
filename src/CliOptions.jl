@@ -372,16 +372,15 @@ struct FlagOption <: AbstractOption
     function FlagOption(primary_name::String, secondary_name::String = "";
                         negators::Union{String,Vector{String}} = String[],
                         help = "", negator_help = "")
-        names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
+        names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
         if negators isa String
             negators = [negators]
         end
-        _validate_option_names(FlagOption, names)
-        _validate_option_names(FlagOption, negators; allow_nameless = true)
+        _validate_option_names(FlagOption, names, negators)
         if negator_help == ""
             negator_help = "Negate usage of " * names[1] * " option"
         end
-        new(names, [n for n ∈ negators], help, negator_help)
+        new(Tuple(names), [n for n ∈ negators], help, negator_help)
     end
 end
 
@@ -441,6 +440,7 @@ function to_usage_tokens(o::FlagOption)
     latter_part = 1 ≤ length(o.negators) ? " | " * o.negators[1] : ""
     ["[" * o.names[1] * latter_part * "]"]
 end
+
 function print_description(io::IO, o::FlagOption)
     print_description(io, o.names, "", o.help)
     if 1 ≤ length(o.negators)
@@ -472,12 +472,11 @@ struct CounterOption <: AbstractOption
                            default::Signed = 0,
                            help::String = "",
                            decrementer_help::String = "")
-        names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
+        names = secondary_name == "" ? [primary_name] : [primary_name, secondary_name]
         if decrementers isa String
             decrementers = [decrementers]
         end
-        _validate_option_names(CounterOption, names)
-        _validate_option_names(CounterOption, decrementers; allow_nameless = true)
+        _validate_option_names(CounterOption, names, decrementers)
         if !(T <: Signed)
             throw(ArgumentError("Type of a CounterOption must be a subtype of Signed:" *
                                 " \"$T\""))
@@ -485,7 +484,7 @@ struct CounterOption <: AbstractOption
         if decrementer_help == ""
             decrementer_help = "Opposite of " * names[1] * " option"
         end
-        new(names, [n for n ∈ decrementers], T(default), T, help, decrementer_help)
+        new(Tuple(names), [n for n ∈ decrementers], T(default), T, help, decrementer_help)
     end
 end
 
@@ -593,6 +592,9 @@ struct Positional <: AbstractOption
         elseif startswith(plural_name, '-')
             throw(ArgumentError("Name of a Positional must not start with a dash: " *
                                 plural_name))
+        elseif singular_name == plural_name
+            throw(ArgumentError("Duplicate names for a Positional found: " *
+                                singular_name))
         end
 
         if plural_name == ""
@@ -1176,6 +1178,19 @@ _to_placeholder(names::Tuple{String,String}) = begin
     uppercase(encode(2 ≤ length(names) ? names[2] : names[1]))
 end
 
+function _get_duplicates(iterables::T...) where T
+    duplicates = eltype(T)[]
+    elements = collect(Iterators.flatten(iterables))
+    for i = 1:length(elements)
+        for j = i+1:length(elements)
+            if elements[i] == elements[j]
+                push!(duplicates, elements[i])
+            end
+        end
+    end
+    duplicates
+end
+
 function foreach_options(f, option::AbstractOption)
     if option isa AbstractOptionGroup
         for o in option.options
@@ -1241,10 +1256,16 @@ function _check_option_name(name)
     return :valid  # It is a name of an option
 end
 
-function _validate_option_names(T, names; allow_nameless = false)
+function _validate_option_names(T, name_lists...)
     article(T) = occursin("$T"[1], "AEIOUaeiou") ? "an" : "a"
-    if !allow_nameless && length(names) == 0
+    names = collect(Iterators.flatten(name_lists))
+    if length(names) == 0
         throw(ArgumentError("At least one name must be supplied for $(article(T)) $T"))
+    end
+    duplicates = _get_duplicates(names)
+    if 1 ≤ length(duplicates)
+        throw(ArgumentError("Duplicate names for $(article(T)) $T found: " *
+                            join(duplicates, ", ")))
     end
     for name in names
         result = _check_option_name(name)

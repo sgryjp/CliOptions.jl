@@ -21,6 +21,25 @@ include("testutils.jl")
         @test Option(UInt32, "-a").T == UInt32
     end
 
+    @testset "ctor; duplicates, $(v[1])" for v in [
+        (["-f", "--foo"], (nothing, nothing)),
+        (["-f", "-f"], (ArgumentError, "-f")),
+    ]
+        names, expected = v
+        if expected[1] isa Type
+            tr = @test_throws expected[1] Option(names...)
+            if tr isa Test.Pass
+                buf = IOBuffer()
+                showerror(buf, tr.value)
+                msg = String(take!(buf))
+                @test msg == ("ArgumentError: Duplicate names for an Option found: " *
+                              expected[2])
+            end
+        else
+            @test Option(names...) !== nothing
+        end
+    end
+
     @testset "show(x); $(join(v[1],','))" for v in [
         (["-a"], "Option(:a)"),
         (["-a", "--foo-bar"], "Option(:a,:foo_bar)"),

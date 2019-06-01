@@ -13,12 +13,12 @@ include("testutils.jl")
             @test_throws ArgumentError CounterOption("a")
             @test_throws ArgumentError CounterOption("-")
             @test_throws ArgumentError CounterOption("--")
+            @test_throws ArgumentError CounterOption(""; decrementers = "-a")
             @test_throws ArgumentError CounterOption("-a"; decrementers = "")
             @test_throws ArgumentError CounterOption("-a"; decrementers = [""])
             @test_throws ArgumentError CounterOption("-a"; decrementers = ["a"])
             @test_throws ArgumentError CounterOption("-a"; decrementers = ["-"])
             @test_throws ArgumentError CounterOption("-a"; decrementers = ["--"])
-            #@test_throws ArgumentError CounterOption("-a"; decrementers = ["-a"])  #TODO
             @test_throws ArgumentError CounterOption(UInt8, "-a")
 
             option = CounterOption("-a")
@@ -43,6 +43,29 @@ include("testutils.jl")
                 CounterOption(Int8, "-v", default = 127)
                 @test_throws InexactError CounterOption(Int8, "-v", default = 128)
             end
+        end
+    end
+
+    @testset "ctor; duplicates, $(v[1]) and $(v[2])" for v in [
+        (["-f", "--foo"], ["-b", "--bar"], (nothing, nothing)),
+        (["-f", "-f"], ["-b", "--bar"], (ArgumentError, "-f")),
+        (["-f", "--foo"], ["-f", "--bar"], (ArgumentError, "-f")),
+        (["-f", "--foo"], ["-b", "--foo"], (ArgumentError, "--foo")),
+        (["-f", "--foo"], ["-b", "-b"], (ArgumentError, "-b")),
+    ]
+        names, decrementers, expected = v
+        if expected[1] isa Type
+            tr = @test_throws expected[1] CounterOption(names...;
+                                                        decrementers = decrementers)
+            if tr isa Test.Pass
+                buf = IOBuffer()
+                showerror(buf, tr.value)
+                msg = String(take!(buf))
+                @test msg == ("ArgumentError: Duplicate names for a CounterOption found: " *
+                              expected[2])
+            end
+        else
+            @test CounterOption(names...; decrementers = decrementers) !== nothing
         end
     end
 

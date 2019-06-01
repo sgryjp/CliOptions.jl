@@ -23,6 +23,23 @@ include("testutils.jl")
         end
     end
 
+    @testset "ctor; duplicates, $(v[1])" for v in [
+        (["-f", "--foo"], (nothing, nothing)),
+        (["-f", "-f"], (ArgumentError, "-f")),
+    ]
+        names, expected = v
+        if expected[1] isa Type
+            tr = @test_throws expected[1] HelpOption(names...)
+            if tr isa Test.Pass
+                msg = stringify(tr.value)
+                @test msg == ("ArgumentError: Duplicate names for a HelpOption found: " *
+                              expected[2])
+            end
+        else
+            @test HelpOption(names...) !== nothing
+        end
+    end
+
     @testset "show(x); $(v[1])" for v in [
         ([], "HelpOption(:h,:help)"),
         (["-a"], "HelpOption(:a)"),

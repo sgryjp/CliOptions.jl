@@ -49,6 +49,22 @@ include("testutils.jl")
         @test CliOptions.encode(input) == expected
     end
 
+    @testset "_get_duplicates($(v[1]), $(v[2]))" for v in [
+        ([1, 1], [], [1]),
+        ([1, 2], [], []),
+        ([1, 2], [3, 4], []),
+        ([1, 1], [3, 4], [1]),
+        ([1, 2], [2, 4], [2]),
+        ([1, 2], [3, 3], [3]),
+    ]
+        iter1, iter2, expected = v
+        if length(iter2) == 0
+            @assert CliOptions._get_duplicates(iter1) == expected
+        else
+            @assert CliOptions._get_duplicates(iter1, iter2) == expected
+        end
+    end
+
     @testset "foreach_options; $(v[2])" for v in [
         (
             OptionGroup(

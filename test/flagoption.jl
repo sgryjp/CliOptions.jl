@@ -12,12 +12,12 @@ include("testutils.jl")
         @test_throws ArgumentError FlagOption("a")
         @test_throws ArgumentError FlagOption("-")
         @test_throws ArgumentError FlagOption("--")
+        @test_throws ArgumentError FlagOption(""; negators = "-a")
         @test_throws ArgumentError FlagOption("-a"; negators = "")
         @test_throws ArgumentError FlagOption("-a"; negators = [""])
         @test_throws ArgumentError FlagOption("-a"; negators = ["a"])
         @test_throws ArgumentError FlagOption("-a"; negators = ["-"])
         @test_throws ArgumentError FlagOption("-a"; negators = ["--"])
-        #@test_throws ArgumentError FlagOption("-a"; negators = ["-a"])  #TODO
 
         option = FlagOption("-a")
         @test option.names == ("-a",)
@@ -30,6 +30,28 @@ include("testutils.jl")
         option = FlagOption("-a", "-b", negators = ["-c", "-d"])
         @test option.names == ("-a", "-b")
         @test option.negators == ["-c", "-d"]
+    end
+
+    @testset "ctor; duplicates, $(v[1]) and $(v[2])" for v in [
+        (["-f", "--foo"], ["-b", "--bar"], (nothing, nothing)),
+        (["-f", "-f"], ["-b", "--bar"], (ArgumentError, "-f")),
+        (["-f", "--foo"], ["-f", "--bar"], (ArgumentError, "-f")),
+        (["-f", "--foo"], ["-b", "--foo"], (ArgumentError, "--foo")),
+        (["-f", "--foo"], ["-b", "-b"], (ArgumentError, "-b")),
+    ]
+        names, negators, expected = v
+        if expected[1] isa Type
+            tr = @test_throws expected[1] FlagOption(names...; negators = negators)
+            if tr isa Test.Pass
+                buf = IOBuffer()
+                showerror(buf, tr.value)
+                msg = String(take!(buf))
+                @test msg == ("ArgumentError: Duplicate names for a FlagOption found: " *
+                              expected[2])
+            end
+        else
+            @test FlagOption(names...; negators = negators) !== nothing
+        end
     end
 
     @testset "show(x); $(join(v[1],','))" for v in [

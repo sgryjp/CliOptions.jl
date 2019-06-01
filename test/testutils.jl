@@ -25,3 +25,9 @@ function Base.redirect_stderr(f::Function, stream::IOBuffer)
         close(rd)
     end
 end
+
+function stringify(e::Exception)
+    buf = IOBuffer()
+    showerror(buf, e)
+    String(take!(buf))
+end

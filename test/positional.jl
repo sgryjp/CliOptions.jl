@@ -31,6 +31,25 @@ include("testutils.jl")
         end
     end
 
+    @testset "ctor; duplicates, $(v[1])" for v in [
+        (["file", "files"], (nothing, nothing)),
+        (["file", "file"], (ArgumentError, "file")),
+    ]
+        names, expected = v
+        if expected[1] isa Type
+            tr = @test_throws expected[1] Positional(names...)
+            if tr isa Test.Pass
+                buf = IOBuffer()
+                showerror(buf, tr.value)
+                msg = String(take!(buf))
+                @test msg == ("ArgumentError: Duplicate names for a Positional found: " *
+                              expected[2])
+            end
+        else
+            @test Positional(names...) !== nothing
+        end
+    end
+
     @testset "show(x); $(v[1])" for v in [
         (["file"], "Positional(:file)"),
         (["file", "files"], "Positional(:file,:files)"),
