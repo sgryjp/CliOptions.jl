@@ -1,5 +1,5 @@
 using Test
-using CliOptions: encode
+using CliOptions
 
 @testset "Internal utilities" begin
 
@@ -34,13 +34,16 @@ using CliOptions: encode
         @test ok == !should_fail
     end
 
-    @testset "encoding()" begin
-        @test encode("f") == "f"
-        @test encode("-f") == "f"
-        @test encode("/f") == "f"
-        @test encode("--f") == "f"
-        @test encode("--foo-bar") == "foo_bar"
-        @test encode("-foo bar") == "foo_bar"
+    @testset "encoding($(v[1]))" for v in [
+        ("f", "f"),
+        ("-f", "f"),
+        ("/f", "f"),
+        ("--f", "f"),
+        ("--foo-bar", "foo_bar"),
+        ("-foo bar", "foo_bar"),
+    ]
+        input, expected = v
+        @test CliOptions.encode(input) == expected
     end
 
     @testset "foreach_options; $(v[2])" for v in [
