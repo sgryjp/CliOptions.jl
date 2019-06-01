@@ -36,12 +36,6 @@ CounterOption
 Positional
 ```
 
-## `RemainderOption`
-
-```@docs
-RemainderOption
-```
-
 ## `HelpOption`
 
 ```@docs

@@ -189,31 +189,6 @@ include("testutils.jl")
         end
     end
 
-    @testset "RemainderOption; $(v[1]), $(v[2])" for v in [
-        (["--"], String[], AbstractString[]),
-        (["--"], ["a", "-7", "--c"], ErrorException),
-        (["--"], ["--", "a", "-7", "--c"], ["a", "-7", "--c"]),
-    ]
-        names, args, expected = v
-        spec = CliOptionSpec(
-            FlagOption("-7"),
-            RemainderOption(names...),
-            onerror = error,
-        )
-        if expected isa Type
-            try
-                parse_args(spec, args)
-                @assert false "Must throw an exception"
-            catch ex
-                @test ex isa ErrorException
-                @test occursin(repr(args[1]), ex.msg)
-            end
-        else
-            args = parse_args(spec, args)
-            @test args._remainders == expected
-        end
-    end
-
     @testset "OptionGroup" begin
         spec = CliOptionSpec(
             OptionGroup(

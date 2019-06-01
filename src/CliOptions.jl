@@ -704,113 +704,6 @@ Base.show(x::Positional) = show(stdout, x)
 
 
 """
-    RemainderOption(primary_name = "--"[, secondary_name];
-                    [help::String])
-
-An option type which takes all the following arguments as its value. It is similar to
-`Positional` with `multiple` parameter is set `true`, but `RemainderOption` never stop
-taking following arguments, even if there is an argument looking like an option.
-
-The default name of a `RemainderOption` is `--` but any valid option name such as `-x` or
-`--exec` can be assigned. Note that using `--` is tricky since it also has special meaning
-for `julia` command itself. To give `--` to a program, we need to use `--` before program
-file name (see the example below.)
-
-Typical usage of this type is to create a utility command which executes another command.
-
-#### Example: A command which executes another command for multiple times
-
-```julia
-# examples/execmany.jl
-using CliOptions
-
-spec = CliOptionSpec(
-    Option(Int, "-n", "--times"; default = 1,
-           help = "Number of times to execute the command"),
-    RemainderOption(help = "Command line arguments to execute"),
-)
-args = parse_args(spec)
-for _ in 1:args.times
-    cmd = Cmd(String[a for a in args._remainders])
-    run(cmd)
-end
-```
-
-Example usage of this command:
-
-```shell
-\$ julia -- examples/execmany.jl -n 3 -- julia --version
-julia version 1.0.3
-julia version 1.0.3
-julia version 1.0.3
-```
-"""
-struct RemainderOption <: AbstractOption
-    names::Union{Tuple{AbstractString},Tuple{AbstractString,AbstractString}}
-    help::String
-
-    function RemainderOption(primary_name::AbstractString = "--",
-                             secondary_name::AbstractString = "";
-                             help::String = "Take all arguments following after")
-        names = secondary_name == "" ? (primary_name,) : (primary_name, secondary_name)
-        _validate_option_names(RemainderOption, names)
-        new(names, help)
-    end
-end
-
-function set_default!(d::Dict{String,Any}, o::RemainderOption)
-    for name in o.names
-        key = encode(name == "--" ? "--_remainders" : name)
-        d[key] = AbstractString[]
-    end
-end
-
-function consume!(d::Dict{String,Any}, o::RemainderOption, args, ctx)
-    @assert 1 ≤ length(args)
-    @assert "" ∉ o.names
-    @assert all(o isa AbstractOption for o in ctx.all_options)
-
-    # Skip if name does not match
-    if args[1] ∉ o.names
-        return 0
-    end
-
-    # Parse arguments
-    values = AbstractString[]
-    for arg in args[2:end]
-        push!(values, arg)
-    end
-    for name in o.names
-        key = encode(name == "--" ? "--_remainders" : name)
-        d[key] = values
-    end
-
-    # Update counter
-    ctx.usage_count[o] = get(ctx.usage_count, o, 0) + 1
-
-    return length(args) + 1
-end
-
-check_usage_count(o::RemainderOption, ctx) = nothing
-
-function to_usage_tokens(o::RemainderOption)
-    ["[$(uppercase(o.names[1])) ARGUMENT [ARGUMENT...]]"]
-end
-
-function print_description(io::IO, o::RemainderOption)
-    print_description(io, o.names, "", o.help)
-end
-
-function Base.show(io::IO, x::RemainderOption)
-    print(io, "RemainderOption(")
-    print(io, join([":" * encode(name == "--" ? "--_remainders" : name)
-                    for name in x.names],
-                   ','))
-    print(io, ")")
-end
-
-
-"""
     OptionGroup(options::AbstractOption...; name::String = "")
 
 `OptionGroup` contains one or more `AbstractOption`s and accepts command line arguments if
@@ -1121,13 +1014,10 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
 
     # Store all options in a vector and pick special options
     help_option = nothing
-    remainders_option = nothing
     foreach_options(spec.root) do o
         push!(ctx.all_options, o)
         if o isa HelpOption
             help_option = o
-        elseif o isa RemainderOption
-            remainders_option = o
         end
     end
 
@@ -1295,9 +1185,6 @@ function _validate_option_names(T, name_lists...)
             throw(ArgumentError("Name of $(article(T)) $T must start with a dash:" *
                                 " \"$name\""))
         elseif result in (:double_dash, :invalid)
-            if T == RemainderOption && result == :double_dash
-                return
-            end
             throw(ArgumentError("Invalid name for $T: \"$name\""))
         end
     end
@@ -1386,7 +1273,6 @@ export CliOptionSpec,
        CounterOption,
        HelpOption,
        Positional,
-       RemainderOption,
        OptionGroup,
        MutexGroup,
        parse_args,
