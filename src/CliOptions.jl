@@ -346,7 +346,7 @@ function consume!(d::Dict{String,Any}, o::HelpOption, args, ctx)
 end
 
 function to_usage_tokens(o::HelpOption)
-    ["[" * o.names[1] "]"]
+    ["[" * o.names[1] * "]"]
 end
 
 function print_description(io::IO, o::HelpOption)
@@ -909,7 +909,7 @@ println(repr(options.required_argument))
 # output
 
 Warning: Option \"--required-argument\" must be specified
-nothing
+missing
 ```
 """
 struct CliOptionSpec
