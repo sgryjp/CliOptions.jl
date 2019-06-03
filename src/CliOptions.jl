@@ -1,7 +1,7 @@
 module CliOptions
 
 
-StringOrStrings = Union{String,Tuple{Vararg{String}},Vector{String}}
+Combiner = Union{Function,Nothing}
 
 """
     CliOptionError(msg::String)
@@ -76,36 +76,61 @@ This is the type [`parse_args`](@ref) function returns. If the function detected
 it stores error messages into `_errors` field of this type. This may be useful if you let
 the program continue running on errors (see `onerror` parameter of `CliOptionSpec`).
 """
-struct ParseResult
-    _dict
+mutable struct ParseResult
+    _defaults
+    _argvals
+    _resolved
     _errors
 
-    ParseResult() = new(Dict{String,Any}(), String[])
+    function ParseResult(argvals = Dict{String,Any}(),
+                         defaults = Dict{String,Tuple{Any,Combiner}}(),
+                         errors = String[])
+        # Generate merged dictionary
+        resolved = Dict{String,Any}()
+        for (k, (v, _)) in defaults
+            resolved[k] = v
+        end
+        for (k, v) in argvals
+            if haskey(defaults, k)
+                _, combiner = defaults[k]
+                if combiner !== nothing
+                    resolved[k] = combiner(resolved[k], v)  # combine the old with the new
+                else
+                    resolved[k] = v  # overwrite the old with the new
+                end
+            else
+                resolved[k] = v  # add new entry for the new default value
+            end
+        end
+
+        new(defaults, argvals, resolved, errors)
+    end
 end
 
 function Base.show(io::IO, x::ParseResult)
-    print(io, typeof(x), "(", join([":$k" for k in sort(collect(keys(x._dict)))], ','), ")")
+    print(io, typeof(x), "(", join([":$k" for k in sort(propertynames(x))], ','), ")")
 end
+
 Base.show(x::ParseResult) = show(stdout, x)
 
 function Base.getindex(result::ParseResult, key)
     k = key isa Symbol ? String(key) : key
-    getindex(result._dict, k)
+    getindex(result._resolved, k)
 end
 
 function Base.propertynames(result::ParseResult; private = false)
-    props = [Symbol(k) for (k, v) in getfield(result, :_dict)]
+    props = [Symbol(k) for (k, v) in getfield(result, :_resolved)]
     if private
-        push!(props, :_dict, :_errors)
+        push!(props, :_argvals, :_defaults, :_errors, :_resolved)
     end
     sort!(props)
 end
 
 function Base.getproperty(result::ParseResult, name::Symbol)
-    if name in (:_dict, :_errors)
+    if name in (:_argvals, :_defaults, :_errors, :_resolved)
         return getfield(result, name)
     else
-        return getfield(result, :_dict)[String(name)]
+        return getfield(result, :_resolved)[String(name)]
     end
 end
 
@@ -195,9 +220,9 @@ function Option(primary_name::String, secondary_name::String = "";
            default = default, until = until, requirement = requirement, help = help)
 end
 
-function set_default!(d::Dict{String,Any}, o::Option)
+function set_default!(d::Dict{String,Tuple{Any,Combiner}}, o::Option)
     for name in o.names
-        d[encode(name)] = o.default
+        d[encode(name)] = (o.default, nothing)
     end
 end
 
@@ -305,9 +330,9 @@ struct HelpOption <: AbstractOption
     end
 end
 
-function set_default!(d::Dict{String,Any}, o::HelpOption)
+function set_default!(d::Dict{String,Tuple{Any,Combiner}}, o::HelpOption)
     for name in o.names
-        d[encode(name)] = false
+        d[encode(name)] = (false, nothing)
     end
 end
 
@@ -384,12 +409,12 @@ struct FlagOption <: AbstractOption
     end
 end
 
-function set_default!(d::Dict{String,Any}, o::FlagOption)
+function set_default!(d::Dict{String,Tuple{Any,Combiner}}, o::FlagOption)
     for name in o.names
-        d[encode(name)] = false
+        d[encode(name)] = (false, nothing)
     end
     for name in o.negators
-        d[encode(name)] = true
+        d[encode(name)] = (true, nothing)
     end
 end
 
@@ -498,9 +523,9 @@ function CounterOption(primary_name::String, secondary_name::String = "";
                   decrementer_help = decrementer_help)
 end
 
-function set_default!(d::Dict{String,Any}, o::CounterOption)
+function set_default!(d::Dict{String,Tuple{Any,Combiner}}, o::CounterOption)
     for name in o.names
-        d[encode(name)] = o.T(o.default)
+        d[encode(name)] = (o.T(o.default), +)  # Intentionally allowing overflow/underflow
     end
 end
 
@@ -617,9 +642,9 @@ function Positional(singular_name::String,
                help = help)
 end
 
-function set_default!(d::Dict{String,Any}, o::Positional)
+function set_default!(d::Dict{String,Tuple{Any,Combiner}}, o::Positional)
     for name in o.names
-        d[encode(name)] = o.default
+        d[encode(name)] = (o.default, nothing)
     end
 end
 
@@ -716,7 +741,7 @@ struct OptionGroup <: AbstractOptionGroup
     OptionGroup(options::AbstractOption...; name::String = "") = new((name,), options)
 end
 
-function set_default!(d::Dict{String,Any}, o::OptionGroup)
+function set_default!(d::Dict{String,Tuple{Any,Combiner}}, o::OptionGroup)
     for option in o.options
         set_default!(d, option)
     end
@@ -769,7 +794,7 @@ struct MutexGroup <: AbstractOptionGroup
     MutexGroup(options::AbstractOption...; name::String = "") = new(name, options)
 end
 
-function set_default!(d::Dict{String,Any}, o::MutexGroup)  # Same as from OptionGroup
+function set_default!(d::Dict{String,Tuple{Any,Combiner}}, o::MutexGroup)  # Same as from OptionGroup
     for option in o.options
         set_default!(d, option)
     end
@@ -1011,8 +1036,10 @@ patterns: ["*.log"]
 ```
 """
 function parse_args(spec::CliOptionSpec, args = ARGS)
-    result = ParseResult()
     ctx = ParseContext(spec.use_double_dash)
+    defaults = Dict{String,Tuple{Any,Combiner}}()
+    argvals = Dict{String,Any}()
+    errors = Vector{String}()
 
     # Store all options in a vector and pick special options
     help_option = nothing
@@ -1026,25 +1053,22 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
     # Normalize argument list
     args = _normalize_args(args)
 
-    # Setup default values
+    # Collect default values
     for option in spec.root
-        set_default!(result._dict, option)
+        set_default!(defaults, option)
     end
 
     # Parse arguments
     i = 1
     while i ≤ length(args)
         try
-            num_consumed = consume!(result._dict, spec.root, args[i:end], ctx)
+            num_consumed = consume!(argvals, spec.root, args[i:end], ctx)
             if num_consumed ≤ 0
                 throw(CliOptionError("Unrecognized argument: \"$(args[i])\""))
             end
             i += num_consumed
         catch ex
-            buf = IOBuffer()
-            showerror(buf, ex)
-            msg = String(take!(buf))
-            push!(result._errors, msg)
+            push!(errors, _stringify(ex))
             i += 1
         end
     end
@@ -1055,7 +1079,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
             check_usage_count(option, ctx)
         catch ex
             ex::CliOptionError
-            push!(result._errors, ex.msg)
+            push!(errors, ex.msg)
         end
     end
 
@@ -1068,7 +1092,7 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
             spec.onhelp()
         end
     end
-    for msg in result._errors
+    for msg in errors
         if spec.onerror isa Integer
             printstyled(stderr, "ERROR: "; color = Base.error_color())
             println(stderr, msg)
@@ -1079,11 +1103,75 @@ function parse_args(spec::CliOptionSpec, args = ARGS)
         end
     end
 
-    result
+    ParseResult(argvals, defaults, errors)
+end
+
+"""
+    update_defaults(result::ParseResult, defaults::Dict{String,Any})::ParseResult
+
+Create a new [`ParseResult`](@ref) of which option values are updated by new default values.
+
+`ParseResult` actually remembers the command line arguments and the default values which
+were originally defined by [`CliOptionSpec`](@ref). This function firstly updates (merges)
+the default values stored in `result` using `defaults`, secondly resolves final option
+values, and finally creates and returns a new `ParseResult`.
+
+This function is useful for a program which uses multiple sources of default values.
+For example, if you want to resolve option values in the following order:
+
+1. Option values specified as command line argument
+2. Option values read from a config file
+3. Hard coded default value
+
+you can use this function as below:
+
+```jldoctest
+# Firstly parse arguments normally
+spec = CliOptionSpec(
+    Option("--config-file"),
+    Option("-x"; default = "foo"),
+)
+args = split("--config-file /path/to/config/file")
+options = parse_args(spec, args)
+println(options.x)  # We see hard-coded default value
+
+# Let's pretend we loaded a config file and update defaults with it
+config = Dict("x" => "bar")
+options = update_defaults(options, config)
+println(options.x)  # Now we see the default value in the config file
+
+# If the option was specified in command line arguments, update_defaults has no effect
+args = split("--config-file /path/to/config/file -x baz")
+options = parse_args(spec, args)
+update_defaults(config)
+println(options.x)  # We see the value specified in the command line arguments
+
+# output
+
+foo
+bar
+baz
+```
+"""
+function update_defaults(result::ParseResult, defaults::AbstractDict)::ParseResult
+    new_defaults = copy(result._defaults)
+    for k in keys(new_defaults)
+        if haskey(defaults, k)
+            new_defaults[k] = (defaults[k], new_defaults[k][2])
+        end
+    end
+    ParseResult(result._argvals, new_defaults, result._errors)
 end
 
 # Internals
+function _stringify(e::Exception)
+    buf = IOBuffer()
+    showerror(buf, e)
+    String(take!(buf))
+end
+
 encode(s) = replace(replace(s, r"^(--|-|/)" => ""), r"[^0-9a-zA-Z]" => "_")
+
 _to_placeholder(name::String) = uppercase(encode(name))
 _to_placeholder(names::Tuple{String}) = uppercase(encode(names[1]))
 _to_placeholder(names::Tuple{String,String}) = begin
@@ -1201,14 +1289,12 @@ function _parse(T, optval::AbstractString, requirement::Any; optname = "")
         else
             parsed_value = T(optval)
         end
-    catch exc
+    catch ex
         # Generate message expressing the error encountered
-        if :msg in fieldnames(typeof(exc))
-            reason = exc.msg
+        if :msg in fieldnames(typeof(ex))
+            reason = ex.msg
         else
-            buf = IOBuffer()
-            print(buf, exc)
-            reason = String(take!(buf))
+            reason = split(_stringify(ex), '\n')[1]
         end
 
         # Throw exception with formatted message
@@ -1277,6 +1363,7 @@ export CliOptionSpec,
        Positional,
        OptionGroup,
        MutexGroup,
+       update_defaults,
        parse_args,
        print_usage,
        CliOptionError

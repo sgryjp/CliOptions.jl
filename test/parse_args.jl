@@ -79,10 +79,10 @@ include("testutils.jl")
     end
 
     @testset "CounterOption; $(v[1:3])" for v in [
-        (Int8, 127, "--add", ErrorException),
+        (Int8, 127, "--add", Int8(-128)),  # overflow
         (Int8, 126, "--add", Int8(127)),
         (Int8, -127, "--sub", Int8(-128)),
-        (Int8, -128, "--sub", ErrorException),
+        (Int8, -128, "--sub", Int8(127)),  # underflow
         (Int128, 0, "--add --sub", Int128(0)),
     ]
         T, default, args, expected = v
@@ -94,7 +94,7 @@ include("testutils.jl")
             @test_throws expected parse_args(spec, split(args))
         else
             args = parse_args(spec, split(args))
-            @test sorted_keys(args._dict) == ["add"]
+            @test propertynames(args) == [:add]
             @test args.add == expected
             @test typeof(args.add) == typeof(expected)
         end
