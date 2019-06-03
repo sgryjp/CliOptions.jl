@@ -1126,6 +1126,8 @@ For example, if you want to resolve option values in the following order:
 you can use this function as below:
 
 ```jldoctest
+using CliOptions
+
 # Firstly parse arguments normally
 spec = CliOptionSpec(
     Option("--config-file"),
@@ -1143,7 +1145,7 @@ println(options.x)  # Now we see the default value in the config file
 # If the option was specified in command line arguments, update_defaults has no effect
 args = split("--config-file /path/to/config/file -x baz")
 options = parse_args(spec, args)
-update_defaults(config)
+options = update_defaults(options, config)
 println(options.x)  # We see the value specified in the command line arguments
 
 # output

@@ -68,6 +68,12 @@ parse_args
 CliOptions.ParseResult
 ```
 
+## `update_defaults`
+
+```@docs
+update_defaults
+```
+
 # Error Handling
 
 ## `print_usage`
