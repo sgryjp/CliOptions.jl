@@ -62,11 +62,7 @@ MutexGroup
 parse_args
 ```
 
-## `ParseResult`
-
-```@docs
-CliOptions.ParseResult
-```
+# Merging withOption Values
 
 ## `update_defaults`
 
@@ -74,7 +70,15 @@ CliOptions.ParseResult
 update_defaults
 ```
 
-# Error Handling
+# Using Parse Result
+
+## `ParseResult`
+
+```@docs
+CliOptions.ParseResult
+```
+
+# Misc.
 
 ## `print_usage`
 ```@docs
@@ -85,8 +89,6 @@ print_usage
 ```@docs
 CliOptionError
 ```
-
-# Internal Types
 
 ## `AbstractOption`
 ```@docs
