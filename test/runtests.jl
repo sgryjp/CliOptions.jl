@@ -1,8 +1,8 @@
 using Test
 using CliOptions
 
-tests = [ent for ent in readdir(dirname(@__FILE__))
-         if endswith(ent, ".jl") && ent != basename(@__FILE__)]
+testfiles = [ent for ent in readdir(dirname(@__FILE__))
+             if endswith(ent, ".jl") && ent != basename(@__FILE__)]
 
 targets = String[]
 let i = 1
@@ -11,12 +11,12 @@ let i = 1
             println("Usage: julia \"$PROGRAM_FILE\" [TEST_NAME...]")
             println()
             println("Available Tests:")
-            for test_filename in tests
-                println("    " * test_filename[1:end-3])
+            for testfile in testfiles
+                println("    " * testfile[1:end-3])
             end
             exit()
         else
-            for t in tests
+            for t in testfiles
                 if startswith(t, ARGS[i])
                     push!(targets, t)
                 end
@@ -27,7 +27,7 @@ let i = 1
     end
 end
 if length(targets) == 0
-    append!(targets, tests)
+    append!(targets, testfiles)
 end
 
 @testset "CliOptions" begin
