@@ -1,19 +1,8 @@
 using Test
 using CliOptions
 
-tests = [
-    "internals.jl",
-    "abstractoptiongroup.jl",
-    "clioptionspec.jl",
-    "parseresult.jl",
-    "option.jl",
-    "flagoption.jl",
-    "counteroption.jl",
-    "helpoption.jl",
-    "positional.jl",
-    "parse_args.jl",
-    "usage.jl",
-]
+tests = [ent for ent in readdir(dirname(@__FILE__))
+         if endswith(ent, ".jl") && ent != basename(@__FILE__)]
 
 targets = String[]
 let i = 1
